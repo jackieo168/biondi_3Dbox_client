@@ -1,29 +1,33 @@
-# import napari
-# from skimage.data import cells3d
-# cells = cells3d()[30, 1]  # get some data
-# viewer = napari.view_image(cells, colormap='magma')
-# napari.run()
-from PyQt5 import QtGui
-from PyQt5.QtWidgets import QApplication, QMainWindow
+# import tkinter as tk
+# from skimage import data
 
-class Window(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.title = "Test Window"
-        self.top = 100
-        self.left = 100
-        self.width = 680
-        self.height = 500
-        self.init()
 
-    def init(self):
-        self.setWindowTitle(self.title)
-        self.setGeometry(self.top, self.left, self.width, self.height)
+# class Application(tk.Frame):
+#     def __init__(self, master=None):
+#         super().__init__(master)
+#         self.master = master
+#         self.pack()
+#         self.create_widgets()
 
-app = QApplication([])
-window = Window()
-window.show()
-print("WINDOW IS SHOWN.")
-app.exec_()
+#     def create_widgets(self):
+#         self.hi_there = tk.Button(self)
+#         self.hi_there["text"] = "Hello World\n(click me)"
+#         self.hi_there["command"] = self.say_hi
+#         self.hi_there.pack(side="top")
 
-   
+#         self.quit = tk.Button(self, text="QUIT", fg="red",
+#                               command=self.master.destroy)
+#         self.quit.pack(side="bottom")
+
+#     def say_hi(self):
+#         print("hi there, everyone!")
+
+# root = tk.Tk()
+# app = Application(master=root)
+# app.mainloop()
+
+import napari
+from skimage.data import cells3d
+
+cells = cells3d()[30, 1]  # get some data
+viewer = napari.view_image(cells, colormap='magma')
