@@ -1,42 +1,58 @@
-# import tkinter as tk
-# from skimage import data
+import napari
+import numpy as np 
+# import imagej
 
+# first show max intense flourescence z projection
+# users annotate these first
+# then they specify the rest of the box
 
-# class Application(tk.Frame):
-#     def __init__(self, master=None):
-#         super().__init__(master)
-#         self.master = master
-#         self.pack()
-#         self.create_widgets()
+test_arr1 = np.load("data/A18-1 HuChP ThS + Hoechst 2 spacer 40x.npy")
+# test_arr2 = np.load("data/UCI-9-18 HuChP ThS + Hoechst 2 spacer 40x 3.npy")
+# ij = imagej.init('npy')
 
-#     def create_widgets(self):
-#         self.hi_there = tk.Button(self)
-#         self.hi_there["text"] = "Hello World\n(click me)"
-#         self.hi_there["command"] = self.say_hi
-#         self.hi_there.pack(side="top")
+test_arr1_max = np.max(test_arr1, axis=0)
 
-#         self.quit = tk.Button(self, text="QUIT", fg="red",
-#                               command=self.master.destroy)
-#         self.quit.pack(side="bottom")
+# viewer = napari.Viewer()
+# new_image_layer_proj = viewer.add_image(test_arr1_max)
+# new_image_layer = viewer.add_image(test_arr1, rgb=True, name='sample1', blending='additive')
+# new_shape_layer = viewer.add_shapes([[0,0],  [1,0],[1,1], [0,1]], shape_type='rectangle', edge_color='orange') 
 
-#     def say_hi(self):
-#         print("hi there, everyone!")
+# new_layer1 = viewer.add_image(test_arr1[:,:,:,0])
+# new_layer1 = viewer.add_image(test_arr1[:,:,:,1])
+# new_layer1 = viewer.add_image(test_arr1[:,:,:,2])
+# new_layer2 = viewer.add_image(test_arr2[:,:,:,0])
+# new_layer2 = viewer.add_image(test_arr2[:,:,:,1])
+# new_layer2 = viewer.add_image(test_arr2[:,:,:,2])
+# napari.run()
 
-# root = tk.Tk()
-# app = Application(master=root)
-# app.mainloop()
+# from PyQt5 import QtCore, QtWidgets
+
+# def main():
+#     app = QtWidgets.QApplication([])
+#     app.setQuitOnLastWindowClosed( True )
+
+#     def start_imagej():
+#         import imagej
+#         ij = imagej.init(headless=False)
+#         print(ij.getVersion())
+#         ij.launch()
+#         print("Launched ImageJ")
+
+#     QtCore.QTimer.singleShot(0, start_imagej)
+#     app.exec_()
+
+# if __name__ == "__main__":
+#     main()
 
 """
 Perform a segmentation and annotate the results with
 bounding boxes and text
 """
-import numpy as np
 from skimage import data
 from skimage.filters import threshold_otsu
 from skimage.segmentation import clear_border
 from skimage.measure import label, regionprops_table
 from skimage.morphology import closing, square, remove_small_objects
-import napari
 
 
 def segment(image):
@@ -116,7 +132,9 @@ def circularity(perimeter, area):
 
 
 # load the image and segment it
-image = data.coins()[50:-50, 50:-50]
+# image = data.coins()[50:-50, 50:-50]
+image = test_arr1_max[:,:,0]
+print(image.shape)
 label_image = segment(image)
 
 # create the properties dictionary
