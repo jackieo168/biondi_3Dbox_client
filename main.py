@@ -58,7 +58,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.title)
         self.show()
 
-    def button_clicked(self, e):
+    def button_clicked(self):
         """
         Button event handler.
         """
@@ -67,6 +67,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage('Initiating New Case')
             file_dlg = FileDialog(self)
         elif sender.text() == 'Continue on Existing Case':
+            # TODO
             pass
 
 

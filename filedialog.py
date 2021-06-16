@@ -1,7 +1,8 @@
 import sys
 from PyQt5.QtWidgets import *
 from filestate import FileState
-
+import numpy as np
+import napari
 
 class FileDialog(QDialog):
     def __init__(self, parent=None):
@@ -31,7 +32,7 @@ class FileDialog(QDialog):
         # buttons
         self.open_file_browse_btn = QPushButton("Browse")
         self.save_dir_browse_btn = QPushButton("Browse")
-        self.dlg_btns = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
+        self.dlg_btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
 
         # initialize UI
         self.init_UI()
@@ -47,8 +48,8 @@ class FileDialog(QDialog):
         self.save_dir_browse_btn.clicked.connect(self.on_save_dir_browse_btn_click)
 
         # line edits
-        self.open_file_entry.returnPressed.connect(self.on_open_file_enter)
-        self.save_dir_entry.returnPressed.connect(self.on_save_dir_enter)
+        # self.open_file_entry.returnPressed.connect(self.on_open_file_enter)
+        # self.save_dir_entry.returnPressed.connect(self.on_save_dir_enter)
 
         # layouts
         self.open_file_layout.addWidget(self.open_file_entry)
@@ -69,6 +70,17 @@ class FileDialog(QDialog):
         self.setWindowTitle(self.title)
         self.show()
 
+    def display_message(self, msg):
+        """
+        displays msg in message box widget.
+        """
+        mbox = QMessageBox()
+        mbox.setWindowTitle("Warning")
+        mbox.setText(msg)
+        mbox.setIcon(QMessageBox.Warning)
+        mbox.setStandardButtons(QMessageBox.Ok)
+        _ = mbox.exec_()
+
     def on_open_file_browse_btn_click(self):
         """
         when open file browse button is clicked.
@@ -76,9 +88,9 @@ class FileDialog(QDialog):
         options = QFileDialog.Options() 
         options |= QFileDialog.DontUseNativeDialog
         filename, _ = QFileDialog.getOpenFileName(
-                        None,
-                        "QFileDialog.getOpenFileName()",
-                        "",
+                        self,
+                        "Select Input Numpy Array",
+                        ".",
                         "NumPy Files (*.npy)",
                         options=options)
         if filename:
@@ -88,26 +100,88 @@ class FileDialog(QDialog):
     def on_save_dir_browse_btn_click(self):
         """
         when save dir browse button is clicked.
+        TODO: is there a way to smartly combine this with on_open_file_browse_btn_click?
+        ANSWER: yes, with self.sender(), but doing it in separate methods is ok
         """
-        pass
+        options = QFileDialog.Options() 
+        options |= QFileDialog.DontUseNativeDialog | QFileDialog.ShowDirsOnly
+        savedir = QFileDialog.getExistingDirectory(
+                        self,
+                        "Select Save Directory",
+                        ".",
+                        options=options)
+        if savedir:
+            self.filestate.set_save_dir( savedir )
+            self.refresh_UI()
 
-    def on_open_file_enter(self):
-        """
-        when open file is inputted into line edit, and enter is pressed.
-        """
-        pass
+    # def on_open_file_enter(self):
+    #     """
+    #     when open file is inputted into line edit, and enter is pressed.
+    #     """
+    #     filename = self.open_file_entry.text()
+    #     if self.filestate.is_valid(filename):
+    #         self.filestate.set_file_name(filename)
+    #         self.refresh_UI()
+    #     else:
+    #         self.display_message("Invalid file type (must be .npy) or file does not exist.\n")
+    #         self.open_file_entry.setText("")
+    #         self.refresh_UI()
 
-    def on_save_dir_enter(self):
+    # def on_save_dir_enter(self):
+    #     """
+    #     when save dir is inputted into line edit, and enter is pressed.
+    #     """
+    #     savedir = self.save_dir_entry.text()
+    #     if savedir:
+    #         self.filestate.set_save_dir(savedir)
+    #         self.refresh_UI()
+    #     else:
+    #         self.display_message("You must specify a directory to save your work.\n")
+
+    def check_paths(self):
         """
-        when save dir is inputted into line edit, and enter is pressed.
+        used when enter is pressed within either of the line edits (means 'Ok').
+        check that the paths are valid.
         """
-        pass
+        filename = self.open_file_entry.text()
+        savedir = self.save_dir_entry.text()
+
+        if self.filestate.is_valid(filename) and savedir:
+            self.filestate.set_file_name(filename)
+            self.filestate.set_save_dir(savedir)
+            self.refresh_UI()
+            return True
+
+        if not self.filestate.is_valid(filename):
+            self.display_message("Invalid file type (must be .npy) or file does not exist.\n")
+            self.open_file_entry.setText("")
+            self.refresh_UI()
+
+        if not savedir:
+            self.display_message("You must specify a directory to save your work.\n")
+
+        return False
 
     def on_ok_click(self):
         """
         when ok button is pressed, launch napari.
         """
-        pass
+        # check once more that the paths in the line edit are valid
+        valid_paths = self.check_paths()
+        if valid_paths:
+            # launch napari w/ instructions screen
+            input_array = np.load(self.filestate.get_file_name())
+            input_array_zmax = np.max(input_array, axis=0)
+            viewer = napari.Viewer()
+            new_image_layer = viewer.add_image(input_array_zmax)
+            napari.run()
+
+            ### TO DO:
+            ### saving
+
+            ### SOME ISSUES: related to napari mostly
+            ### Q: when selecting a column what if some biondi bodies are overlapping between columns?
+            ### Q: do we want it so that after annotating the flattened image, users anotate the vertical slices individually?
 
     def on_cancel_click(self):
         """
