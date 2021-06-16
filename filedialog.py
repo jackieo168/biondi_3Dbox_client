@@ -1,12 +1,13 @@
 import sys
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon
-from pathlib import Path
+from filestate import FileState
 
 
 class FileDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self.filestate = FileState()
 
         # text
         self.title = "Initialize a Case"
@@ -16,9 +17,6 @@ class FileDialog(QDialog):
         self.y = 300
         self.width = 400
         self.height = 150
-        
-        # central widget
-        self.central_widget = QWidget()
         
         # layouts
         self.dlg_layout = QVBoxLayout()
@@ -45,8 +43,12 @@ class FileDialog(QDialog):
         # buttons
         self.dlg_btns.accepted.connect(self.on_ok_click)
         self.dlg_btns.rejected.connect(self.on_cancel_click)
-        self.open_file_browse_btn.clicked.connect(self.on_open_file_click)
-        self.save_dir_browse_btn.clicked.connect(self.on_save_file_click)
+        self.open_file_browse_btn.clicked.connect(self.on_open_file_browse_btn_click)
+        self.save_dir_browse_btn.clicked.connect(self.on_save_dir_browse_btn_click)
+
+        # line edits
+        self.open_file_entry.returnPressed.connect(self.on_open_file_enter)
+        self.save_dir_entry.returnPressed.connect(self.on_save_dir_enter)
 
         # layouts
         self.open_file_layout.addWidget(self.open_file_entry)
@@ -67,14 +69,53 @@ class FileDialog(QDialog):
         self.setWindowTitle(self.title)
         self.show()
 
+    def on_open_file_browse_btn_click(self):
+        """
+        when open file browse button is clicked.
+        """
+        options = QFileDialog.Options() 
+        options |= QFileDialog.DontUseNativeDialog
+        filename, _ = QFileDialog.getOpenFileName(
+                        None,
+                        "QFileDialog.getOpenFileName()",
+                        "",
+                        "NumPy Files (*.npy)",
+                        options=options)
+        if filename:
+            self.filestate.set_file_name( filename )
+            self.refresh_UI()
+
+    def on_save_dir_browse_btn_click(self):
+        """
+        when save dir browse button is clicked.
+        """
+        pass
+
+    def on_open_file_enter(self):
+        """
+        when open file is inputted into line edit, and enter is pressed.
+        """
+        pass
+
+    def on_save_dir_enter(self):
+        """
+        when save dir is inputted into line edit, and enter is pressed.
+        """
+        pass
+
     def on_ok_click(self):
+        """
+        when ok button is pressed, launch napari.
+        """
         pass
 
     def on_cancel_click(self):
-        pass
+        """
+        when cancel button is pressed, close dialog.
+        """
+        self.close()
 
-    def on_open_file_click(self):
-        pass
-
-    def on_save_file_click(self):
-        pass
+    def refresh_UI(self):
+        self.open_file_entry.setText(self.filestate.get_file_name())
+        self.save_dir_entry.setText(self.filestate.get_save_dir())
+    
