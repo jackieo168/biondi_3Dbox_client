@@ -3,6 +3,8 @@ from PyQt5.QtWidgets import *
 from filestate import FileState
 import numpy as np
 import napari
+import tkinter as tk
+from app import Application
 
 class FileDialog(QDialog):
     def __init__(self, parent=None):
@@ -114,29 +116,6 @@ class FileDialog(QDialog):
             self.filestate.set_save_dir( savedir )
             self.refresh_UI()
 
-    # def on_open_file_enter(self):
-    #     """
-    #     when open file is inputted into line edit, and enter is pressed.
-    #     """
-    #     filename = self.open_file_entry.text()
-    #     if self.filestate.is_valid(filename):
-    #         self.filestate.set_file_name(filename)
-    #         self.refresh_UI()
-    #     else:
-    #         self.display_message("Invalid file type (must be .npy) or file does not exist.\n")
-    #         self.open_file_entry.setText("")
-    #         self.refresh_UI()
-
-    # def on_save_dir_enter(self):
-    #     """
-    #     when save dir is inputted into line edit, and enter is pressed.
-    #     """
-    #     savedir = self.save_dir_entry.text()
-    #     if savedir:
-    #         self.filestate.set_save_dir(savedir)
-    #         self.refresh_UI()
-    #     else:
-    #         self.display_message("You must specify a directory to save your work.\n")
 
     def check_paths(self):
         """
@@ -169,13 +148,19 @@ class FileDialog(QDialog):
         # check once more that the paths in the line edit are valid
         valid_paths = self.check_paths()
         if valid_paths:
-            # launch napari w/ instructions screen
-            input_array = np.load(self.filestate.get_file_name())
-            input_array_zmax = np.max(input_array, axis=0)
-            viewer = napari.Viewer()
-            new_image_layer = viewer.add_image(input_array_zmax)
-            napari.run()
-
+            self.hide()
+            # # launch napari w/ instructions screen
+            # input_array = np.load(self.filestate.get_file_name())
+            # input_array_zmax = np.max(input_array, axis=0)
+            # viewer = napari.Viewer(ndisplay=3)
+            # # new_image_layer = viewer.add_image(input_array_zmax)
+            # new_image_layer = viewer.add_image(input_array[:,100:200,100:200,:], rgb=True, blending='additive')
+            # main_window = viewer.window._qt_window
+            # qt_viewer = viewer.window.qt_viewer
+            # main_window.setGeometry(300,300,100,100)
+            # main_window.show()
+            root = tk.Tk()
+            app = Application(self.filestate, root)
             ### TO DO:
             ### saving
 

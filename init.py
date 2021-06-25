@@ -62,6 +62,7 @@ class MainWindow(QMainWindow):
         """
         Button event handler.
         """
+        self.hide()
         sender = self.sender()
         if sender.text() == 'Initiate New Case':
             self.statusBar().showMessage('Initiating New Case')
