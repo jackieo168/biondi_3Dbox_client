@@ -149,16 +149,6 @@ class FileDialog(QDialog):
         valid_paths = self.check_paths()
         if valid_paths:
             self.hide()
-            # # launch napari w/ instructions screen
-            # input_array = np.load(self.filestate.get_file_name())
-            # input_array_zmax = np.max(input_array, axis=0)
-            # viewer = napari.Viewer(ndisplay=3)
-            # # new_image_layer = viewer.add_image(input_array_zmax)
-            # new_image_layer = viewer.add_image(input_array[:,100:200,100:200,:], rgb=True, blending='additive')
-            # main_window = viewer.window._qt_window
-            # qt_viewer = viewer.window.qt_viewer
-            # main_window.setGeometry(300,300,100,100)
-            # main_window.show()
             root = tk.Tk()
             app = Application(self.filestate, root)
             ### TO DO:
