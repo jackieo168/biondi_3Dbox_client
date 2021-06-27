@@ -1,30 +1,53 @@
-import tkinter as tk 
-from tkinter import ttk
-from PIL import Image, ImageTk
+# import tkinter as tk 
+# from tkinter import ttk
+# from PIL import Image, ImageTk
 import os
 import numpy as np
-import napari
 
-class Application(tk.Frame):
-	def __init__(self, filestate, master):
-		# launch napari w/ instructions screen
-		self.master = master
+# importing Qt widgets
+from PyQt5.QtWidgets import * 
+import sys
+  
+# importing pyqtgraph as pg
+import pyqtgraph as pg
+from PyQt5.QtGui import *
+
+class Application(QWidget):
+	def __init__(self, filestate):
+		super().__init__()
 		self.filestate = filestate
+		self.layout = QVBoxLayout()
 
+		# text
+		self.title = "3D Biondi Body Client"
+
+		# properties
+		self.x = 100
+		self.y = 100
+		self.width = 600
+		self.height = 500
+
+		# components (widgets)
+		self.img_plot = pg.ImageView()
+
+		# IMAGE ARRAY
 		input_array = np.load(self.filestate.get_file_name())
 		input_array = input_array/np.max(input_array)
-		input_array_zmax = np.max(input_array, axis=0)
-		viewer = napari.Viewer(ndisplay=2)
-		new_image_layer = viewer.add_image(input_array_zmax)
-		new_shapes_layer = viewer.add_shapes(
-			[[0,0],[0,0],[0,0],[0,0]],
-			shape_type = 'rectangle',
-			face_color = 'transparent',
-			edge_width = 8,
-			edge_color = 'lime',
-			name = 'bboxes')
-		# new_image_layer = viewer.add_image(input_array[:,100:200,100:200,:], rgb=True, blending='additive')
-		main_window = viewer.window._qt_window
-		qt_viewer = viewer.window.qt_viewer
-		main_window.setGeometry(300,300,300,300)
-		main_window.show()
+		self.input_array_zmax = np.max(input_array, axis=0)
+
+		# initialize UI
+		self.init_UI()
+		
+	def init_UI(self):
+		"""
+		Initialize text/buttons for the main window.
+		"""
+		self.setWindowTitle(self.title)
+		self.setGeometry(self.x, self.y, self.width, self.height)
+
+		self.img_plot.setImage(self.input_array_zmax)
+		self.layout.addWidget(self.img_plot)
+		
+
+		self.setLayout(self.layout)
+		# self.img_plot.show()

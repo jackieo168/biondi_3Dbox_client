@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import *
 from filestate import FileState
 import numpy as np
 import napari
-import tkinter as tk
+# import tkinter as tk
 from app import Application
 
 class FileDialog(QDialog):
@@ -149,8 +149,9 @@ class FileDialog(QDialog):
         valid_paths = self.check_paths()
         if valid_paths:
             self.hide()
-            root = tk.Tk()
-            app = Application(self.filestate, root)
+            # root = tk.Tk()
+            self.app = Application(self.filestate)
+            self.app.show()
             ### TO DO:
             ### saving
 
@@ -165,6 +166,9 @@ class FileDialog(QDialog):
         self.close()
 
     def refresh_UI(self):
+        """
+        resets the text in the line edits, effectively "refreshing" the UI state.
+        """
         self.open_file_entry.setText(self.filestate.get_file_name())
         self.save_dir_entry.setText(self.filestate.get_save_dir())
     
