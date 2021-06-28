@@ -18,7 +18,8 @@ class Application(QMainWindow):
 	def __init__(self, filestate):
 		super().__init__()
 		self.filestate = filestate
-		self.layout = QVBoxLayout()
+		self.layout = QHBoxLayout()
+		self.bbox_num = 0
 
 		# text
 		self.title = "3D Biondi Body Client"
@@ -47,21 +48,32 @@ class Application(QMainWindow):
 		"""
 		Initialize text/buttons for the main window.
 		"""
+		# set up global config options for pyqtgraph
+		pg.setConfigOptions(imageAxisOrder='row-major')
+
 		# set up central widget
 		self.img_plot.setImage(self.input_array_zmax, autoRange=True, )
 		self.layout.addWidget(self.img_plot)
 		self.central_widget.setLayout(self.layout)
+		self.central_widget.setMouseTracking(True)
 
 		# set up window properties
 		self.setWindowTitle(self.title)
 		self.setGeometry(self.x, self.y, self.width, self.height)
 		self.setCentralWidget(self.central_widget)
+
+		# self.img_plot.sigMouseDrag.connect(mouseDragEvent)
 		# self.img_plot.show() called by caller
 
 	# override
-	def mousePressEvent(self, event):
-		x = event.x()
-		y = event.y()
-		self.statusBar().showMessage('x= ' + str(x) + ' y= ' + str(y))
-		bbox = BoundingBox(x,y)
-		self.img_plot.addItem(bbox.bbox)
+	def keyPressEvent(self, event):
+		# x = event.x()
+		# y = event.y()
+		# self.statusBar().showMessage('x= ' + str(x) + ', y= ' + str(y))
+		def getArrayChunk():
+			print(self.bbox.bbox.getArrayRegion(self.input_array_zmax, self.img_plot.getImageItem(), axes=[1,0], returnMappedCoords=True))
+		self.bbox_num += 1
+		self.bbox = BoundingBox(self.bbox_num,0,0)
+		self.img_plot.addItem(self.bbox.bbox)
+		self.bbox.bbox.sigRegionChangeFinished.connect(getArrayChunk)
+		
