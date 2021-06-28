@@ -10,7 +10,7 @@ from filedialog import FileDialog
 # first show max intense flourescence z projection
 # users annotate these first
 # then they specify the rest of the box
-class MainWindow(QMainWindow):
+class OpeningWindow(QWidget):
     def __init__(self):
         super().__init__()
 
@@ -27,7 +27,7 @@ class MainWindow(QMainWindow):
         self.height = 150
 
         # components (widgets)
-        self.central_widget = QWidget()
+        # self.central_widget = QWidget()
         self.layout = QVBoxLayout()
         self.existing_btn = QPushButton('Continue on Existing Case', self)
         self.new_btn = QPushButton('Initiate New Case', self)
@@ -49,11 +49,11 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.new_btn)
         self.new_btn.clicked.connect(self.button_clicked)
 
-        self.central_widget.setLayout(self.layout)
+        self.setLayout(self.layout)
 
         # set up window properties 
-        self.statusBar()
-        self.setCentralWidget(self.central_widget)
+        # self.statusBar()
+        # self.setCentralWidget(self.central_widget)
         self.setGeometry(self.x, self.y, self.width, self.height)
         self.setWindowTitle(self.title)
         self.show()
@@ -65,24 +65,22 @@ class MainWindow(QMainWindow):
         self.hide()
         sender = self.sender()
         if sender.text() == 'Initiate New Case':
-            self.statusBar().showMessage('Initiating New Case')
+            # self.statusBar().showMessage('Initiating New Case')
             file_dlg = FileDialog(self)
         elif sender.text() == 'Continue on Existing Case':
             # TODO
             pass
 
 
-def main():
+if __name__=="__main__":
     # construct app
     app = QApplication([])
     app.setStyle('Fusion')
 
-    # construct and show main window
-    m = MainWindow()
+    # construct and show opening window
+    o = OpeningWindow()
 
     # run
     sys.exit(app.exec_())
 
 
-if __name__=="__main__":
-    main()

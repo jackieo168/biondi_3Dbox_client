@@ -12,7 +12,9 @@ import sys
 import pyqtgraph as pg
 from PyQt5.QtGui import *
 
-class Application(QWidget):
+from boundingbox import BoundingBox
+
+class Application(QMainWindow):
 	def __init__(self, filestate):
 		super().__init__()
 		self.filestate = filestate
@@ -24,16 +26,19 @@ class Application(QWidget):
 		# properties
 		self.x = 100
 		self.y = 100
-		self.width = 600
-		self.height = 500
+		self.width = 950
+		self.height = 950
 
 		# components (widgets)
+		self.statusBar()
+		self.central_widget = QWidget()
 		self.img_plot = pg.ImageView()
 
 		# IMAGE ARRAY
 		input_array = np.load(self.filestate.get_file_name())
 		input_array = input_array/np.max(input_array)
 		self.input_array_zmax = np.max(input_array, axis=0)
+		# self.input_array_zmax = input_array
 
 		# initialize UI
 		self.init_UI()
@@ -42,12 +47,21 @@ class Application(QWidget):
 		"""
 		Initialize text/buttons for the main window.
 		"""
+		# set up central widget
+		self.img_plot.setImage(self.input_array_zmax, autoRange=True, )
+		self.layout.addWidget(self.img_plot)
+		self.central_widget.setLayout(self.layout)
+
+		# set up window properties
 		self.setWindowTitle(self.title)
 		self.setGeometry(self.x, self.y, self.width, self.height)
+		self.setCentralWidget(self.central_widget)
+		# self.img_plot.show() called by caller
 
-		self.img_plot.setImage(self.input_array_zmax)
-		self.layout.addWidget(self.img_plot)
-		
-
-		self.setLayout(self.layout)
-		# self.img_plot.show()
+	# override
+	def mousePressEvent(self, event):
+		x = event.x()
+		y = event.y()
+		self.statusBar().showMessage('x= ' + str(x) + ' y= ' + str(y))
+		bbox = BoundingBox(x,y)
+		self.img_plot.addItem(bbox.bbox)
