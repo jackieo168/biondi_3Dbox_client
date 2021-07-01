@@ -39,7 +39,6 @@ class Application(QMainWindow):
 		input_array = np.load(self.filestate.get_file_name())
 		input_array = input_array/np.max(input_array)
 		self.input_array_zmax = np.max(input_array, axis=0)
-		# self.input_array_zmax = input_array
 
 		# initialize UI
 		self.init_UI()
@@ -62,6 +61,9 @@ class Application(QMainWindow):
 		self.setGeometry(self.x, self.y, self.width, self.height)
 		self.setCentralWidget(self.central_widget)
 
+		self.img_plot_item = self.img_plot.getImageItem()
+		# self.img_plot.scene.sigMouseClicked.connect(self.mousePressEvent)
+		# pg.QtGui.QApplication.processEvents()
 		# self.img_plot.sigMouseDrag.connect(mouseDragEvent)
 		# self.img_plot.show() called by caller
 
@@ -70,10 +72,11 @@ class Application(QMainWindow):
 		# x = event.x()
 		# y = event.y()
 		# self.statusBar().showMessage('x= ' + str(x) + ', y= ' + str(y))
-		def getArrayChunk():
-			print(self.bbox.bbox.getArrayRegion(self.input_array_zmax, self.img_plot.getImageItem(), axes=[1,0], returnMappedCoords=True))
 		self.bbox_num += 1
-		self.bbox = BoundingBox(self.bbox_num,0,0)
-		self.img_plot.addItem(self.bbox.bbox)
-		self.bbox.bbox.sigRegionChangeFinished.connect(getArrayChunk)
-		
+		self.latest_added_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_plot, 0,0)
+		self.img_plot.addItem(self.latest_added_bbox.bbox)
+		self.latest_added_bbox.bbox.sigRegionChanged.connect(self.latest_added_bbox.getArraySlice)
+
+	def mousePressEvent(self, event):
+		items = self.img_plot.scene.items(event.pos())
+		print(items)

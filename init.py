@@ -56,17 +56,15 @@ class OpeningWindow(QWidget):
         # self.setCentralWidget(self.central_widget)
         self.setGeometry(self.x, self.y, self.width, self.height)
         self.setWindowTitle(self.title)
-        self.show()
 
     def button_clicked(self):
         """
         Button event handler.
         """
-        self.hide()
         sender = self.sender()
         if sender.text() == 'Initiate New Case':
-            # self.statusBar().showMessage('Initiating New Case')
-            file_dlg = FileDialog(self)
+            self.file_dlg = FileDialog(self)
+            self.file_dlg.show()
         elif sender.text() == 'Continue on Existing Case':
             # TODO
             pass
@@ -79,8 +77,9 @@ if __name__=="__main__":
 
     # construct and show opening window
     o = OpeningWindow()
+    o.show()
 
     # run
-    sys.exit(app.exec_())
+    app.exec()
 
 

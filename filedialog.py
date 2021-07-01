@@ -70,7 +70,6 @@ class FileDialog(QDialog):
         self.setLayout(self.dlg_layout)
         self.setGeometry(self.x, self.y, self.width, self.height)
         self.setWindowTitle(self.title)
-        self.show()
 
     def display_message(self, msg):
         """
@@ -80,8 +79,7 @@ class FileDialog(QDialog):
         mbox.setWindowTitle("Warning")
         mbox.setText(msg)
         mbox.setIcon(QMessageBox.Warning)
-        mbox.setStandardButtons(QMessageBox.Ok)
-        _ = mbox.exec_()
+        mbox.exec()
 
     def on_open_file_browse_btn_click(self):
         """
@@ -133,12 +131,13 @@ class FileDialog(QDialog):
 
         if not self.filestate.is_valid(filename):
             self.display_message("Invalid file type (must be .npy) or file does not exist.\n")
-            self.open_file_entry.setText("")
-            self.refresh_UI()
+            self.filestate.set_file_name("")
 
         if not savedir:
             self.display_message("You must specify a directory to save your work.\n")
-
+            self.filestate.set_save_dir("")
+            
+        self.refresh_UI()
         return False
 
     def on_ok_click(self):
