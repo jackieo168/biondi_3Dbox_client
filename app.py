@@ -48,7 +48,7 @@ class Application(QMainWindow):
 		Initialize text/buttons for the main window.
 		"""
 		# set up global config options for pyqtgraph
-		pg.setConfigOptions(imageAxisOrder='row-major')
+		# pg.setConfigOptions(imageAxisOrder='row-major')
 
 		# set up central widget
 		self.img_plot.setImage(self.input_array_zmax, autoRange=True, )
@@ -77,27 +77,38 @@ class Application(QMainWindow):
 		# self.img_plot.addItem(self.latest_added_bbox.bbox)
 		# self.latest_added_bbox.bbox.sigRegionChanged.connect(self.latest_added_bbox.getArraySlice)
 
-	def mouseHoverEvent(self, event):
-		mouse_pos = event.pos()
-		x = mouse_pos.x()
-		y = mouse_pos.y()
-		items = self.img_plot.scene.items(mouse_pos)
-		print(items)
+	# def mouseHoverEvent(self, event):
+	# 	mouse_pos = event.pos()
+	# 	x = mouse_pos.x()
+	# 	y = mouse_pos.y()
+	# 	items = self.img_plot.scene.items(mouse_pos)
+	# 	print(items)
 
 	def mousePressEvent(self, event):
+		self.statusBar().showMessage('bbox detected')
 		mouse_pos = event.pos()
 		x = mouse_pos.x()
 		y = mouse_pos.y()
 		items = self.img_plot.scene.items(mouse_pos)
 		print(items)
 		bboxes_at_cursor = [item for item in items if isinstance(item, BoundingBox)]
+		# has_handle = any(isinstance(item, pg.graphicsItems.ROI.Handle) for item in items)
 		if bboxes_at_cursor:
 			self.statusBar().showMessage('bbox detected')
 			bbox_at_cursor = bboxes_at_cursor[0] # always choose the top box
 			bbox_at_cursor.sigRegionChanged.connect(bbox_at_cursor.get_array_slice)
-		else: # draw bbox
-			self.statusBar().showMessage('drawing bbox')
-			self.bbox_num += 1
-			added_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_plot, x,y)
-			self.img_plot.addItem(added_bbox)
-			added_bbox.sigRegionChanged.connect(added_bbox.get_array_slice)
+		# if has_handle:
+		# 	self.statusBar().showMessage('bbox handle detected')
+		# else: # draw bbox
+		# 	self.statusBar().showMessage('drawing bbox')
+		# 	self.bbox_num += 1
+		# 	added_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_plot, x,y)
+		# 	self.img_plot.addItem(added_bbox)
+		# 	# added_bbox.sigRegionChanged.connect(added_bbox.get_array_slice)
+
+	def keyPressEvent(self,event):
+		self.statusBar().showMessage('bbox added')
+		self.bbox_num += 1
+		added_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_plot, 0,0)
+		self.img_plot.addItem(added_bbox)
+		# added_bbox.sigRegionChanged.connect(added_bbox.get_array_slice)
