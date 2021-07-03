@@ -1,14 +1,14 @@
 import pyqtgraph as pg
 
 class BoundingBox(pg.RectROI):
-	def __init__(self, bbox_num, img, img_plot, x, y):
+	def __init__(self, bbox_num, img, img_view, x, y):
 		self.bbox_num = bbox_num
 		self.img = img
-		self.img_plot = img_plot
-		self.img_plot_item = self.img_plot.getImageItem()
+		self.img_view = img_view
+		self.img_view_item = self.img_view.getImageItem()
 		self.x = x 
 		self.y = y 
-		super().__init__([self.y, self.x], size=[20,20])
+		super().__init__([self.x, self.y], size=[20,20])
 		# self.bbox = pg.RectROI([self.y, self.x], size=[10,10])
 
 		# ## handles scaling horizontally around center
@@ -26,4 +26,4 @@ class BoundingBox(pg.RectROI):
 		self.addScaleHandle([1, 1], [0, 0])
 
 	def get_array_slice(self):
-		print("id: " + str(self.bbox_num) + " " + str(self.getArraySlice(self.img, self.img_plot_item, returnSlice=True)))
+		print("id: " + str(self.bbox_num) + " " + str(self.getArraySlice(self.img, self.img_view_item, returnSlice=True)))
