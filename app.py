@@ -13,7 +13,6 @@ import pyqtgraph as pg
 from PyQt5.QtGui import *
 
 from boundingbox import BoundingBox
-from imageviewer import ImgItem
 
 class Application(QMainWindow):
 	def __init__(self, filestate):
