@@ -6,9 +6,9 @@ class BoundingBox(pg.RectROI):
 		self.img = img
 		self.img_view = img_view
 		self.img_view_item = self.img_view.getImageItem()
-		self.x = x 
-		self.y = y 
-		super().__init__([self.x, self.y], size=[20,20])
+		self.init_x = x 
+		self.init_y = y 
+		super().__init__([self.init_x, self.init_y], size=[20,20], rotatable=False, resizable=True, removable=True)
 		# self.bbox = pg.RectROI([self.y, self.x], size=[10,10])
 
 		# ## handles scaling horizontally around center
@@ -26,4 +26,8 @@ class BoundingBox(pg.RectROI):
 		self.addScaleHandle([1, 1], [0, 0])
 
 	def get_array_slice(self):
-		print("id: " + str(self.bbox_num) + " " + str(self.getArraySlice(self.img, self.img_view_item, returnSlice=True)))
+		self.array_slice = self.getArraySlice(self.img, self.img_view_item, returnSlice=True)
+		print(self.array_slice[0])
+
+	def get_bbox_num(self):
+		return self.bbox_num
