@@ -26,11 +26,15 @@ class BoundingBox(pg.RectROI):
 		self.addScaleHandle([1, 1], [0, 0])
 
 	def get_array_slice(self):
-		self.selected_data = self.getArrayRegion(self.img, self.img_view_item)
-		# self.array_slice = self.getArraySlice(self.img, self.img_view_item, returnSlice=True)
-		# print(self.array_slice[0][0][0])
-		self.img_view.setImage(self.selected_data)
-
+		self.selected_data_zproj = self.getArrayRegion(self.img, self.img_view_item, returnMappedCoords=True)
+		self.selected_data_zproj_slice = self.getArraySlice(self.img, self.img_view_item, returnSlice=True)
+		selected_data_zproj_slice_obj = self.selected_data_zproj_slice[0]
+		selected_data_zproj_slice_obj_0 = selected_data_zproj_slice_obj[0]
+		selected_data_zproj_slice_obj_1 = selected_data_zproj_slice_obj[1]
+		self.row_start = selected_data_zproj_slice_obj_0.start
+		self.row_end = selected_data_zproj_slice_obj_0.stop
+		self.col_start = selected_data_zproj_slice_obj_1.start
+		self.col_end = selected_data_zproj_slice_obj_1.stop
 
 	def get_bbox_num(self):
 		return self.bbox_num

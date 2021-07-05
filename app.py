@@ -20,6 +20,7 @@ class Application(QMainWindow):
 		self.filestate = filestate
 		self.layout = QHBoxLayout()
 		self.bbox_num = 0
+		self.latest_clicked_bbox = None
 
 		# text
 		self.title = "3D Biondi Body Client"
@@ -35,12 +36,13 @@ class Application(QMainWindow):
 		self.status_bar = self.statusBar()
 
 		# IMAGE ARRAY
-		input_array = np.load(self.filestate.get_file_name())
-		input_array = input_array/np.max(input_array)
-		self.input_array_zmax = np.max(input_array, axis=0)
+		self.input_array = np.load(self.filestate.get_file_name())
+		self.input_array = self.input_array/np.max(self.input_array)
+		self.input_array_zmax = np.max(self.input_array, axis=0)
 
 		# components cont'd (image plot widget)
 		self.img_plot = pg.PlotItem()
+		self.top_view_plot = pg.PlotItem()
 
 		# initialize UI
 		self.init_UI()
@@ -57,6 +59,11 @@ class Application(QMainWindow):
 		self.img_view = pg.ImageView(view=self.img_plot) # create image view widget with view as the image plot widget
 		self.img_view.setImage(self.input_array_zmax) # set its image
 		self.layout.addWidget(self.img_view) # add image view widget to layout
+		
+		self.top_view_plot.enableAutoScale()
+		self.top_img_view = pg.ImageView(view=self.top_view_plot)
+		self.layout.addWidget(self.top_img_view)
+
 		self.central_widget.setLayout(self.layout)
 
 		# set up window properties
@@ -91,6 +98,13 @@ class Application(QMainWindow):
 		bboxes_at_cursor = [item for item in items if isinstance(item, BoundingBox)]
 		if bboxes_at_cursor:
 			self.status_bar.showMessage('bbox detected')
+			self.latest_clicked_bbox = bboxes_at_cursor[0] # take top-most bbox
+			self.latest_clicked_bbox.get_array_slice()
+			row_start = self.latest_clicked_bbox.row_start 
+			row_end = self.latest_clicked_bbox.row_end 
+			col_start = self.latest_clicked_bbox.col_start 
+			col_end = self.latest_clicked_bbox.col_end
+			self.top_img_view.setImage(self.input_array_zmax[row_start:row_end,col_start:col_end,:])
 		else:
 			self.statusBar().showMessage('adding bbox')
 			self.bbox_num += 1
