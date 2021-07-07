@@ -150,7 +150,7 @@ class FileDialog(QDialog):
             self.hide()
             # root = tk.Tk()
             self.app = Application(self.filestate)
-            self.app.show()
+            self.app.showMaximized()
             ### TO DO:
             ### saving
 

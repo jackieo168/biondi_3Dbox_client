@@ -18,7 +18,7 @@ class Application(QMainWindow):
 	def __init__(self, filestate):
 		super().__init__()
 		self.filestate = filestate
-		self.layout = QHBoxLayout()
+		self.layout = QGridLayout()
 		self.bbox_num = 0
 		self.latest_clicked_bbox = None
 
@@ -43,6 +43,8 @@ class Application(QMainWindow):
 		# components cont'd (image plot widget)
 		self.img_plot = pg.PlotItem()
 		self.top_view_plot = pg.PlotItem()
+		self.top_scan_view_plot = pg.PlotItem()
+		self.side_view_plot = pg.PlotItem()
 
 		# initialize UI
 		self.init_UI()
@@ -52,17 +54,27 @@ class Application(QMainWindow):
 		Initialize text/buttons for the main window.
 		"""
 		# set up global config options for pyqtgraph
-		# pg.setConfigOptions(imageAxisOrder='row-major')
+		pg.setConfigOptions(imageAxisOrder='row-major')
 
 		# set up central widget
 		self.img_plot.enableAutoScale()		
 		self.img_view = pg.ImageView(view=self.img_plot) # create image view widget with view as the image plot widget
 		self.img_view.setImage(self.input_array_zmax) # set its image
-		self.layout.addWidget(self.img_view) # add image view widget to layout
 		
 		self.top_view_plot.enableAutoScale()
 		self.top_img_view = pg.ImageView(view=self.top_view_plot)
-		self.layout.addWidget(self.top_img_view)
+
+		self.top_scan_view_plot.enableAutoScale()
+		self.top_scan_img_view = pg.ImageView(view=self.top_scan_view_plot)
+
+		self.side_view_plot.enableAutoScale()
+		self.side_img_view = pg.ImageView(view=self.side_view_plot)
+
+		# add to layout
+		self.layout.addWidget(self.img_view, 0, 0, 2, 2)
+		self.layout.addWidget(self.top_img_view, 0, 2, 1, 1)
+		self.layout.addWidget(self.top_scan_img_view, 1, 2, 1, 1)
+		self.layout.addWidget(self.side_img_view, 0, 3, 2, 1)
 
 		self.central_widget.setLayout(self.layout)
 
@@ -86,7 +98,7 @@ class Application(QMainWindow):
 
 	def mouseClicked(self, event):
 		'''
-		For adding bboxes or changing existing bboxes.
+		For adding bboxes or changing existing bboxes in the main image view.
 		'''
 		self.status_bar.showMessage('')
 		mouse_pos = event.scenePos()
@@ -105,6 +117,9 @@ class Application(QMainWindow):
 			col_start = self.latest_clicked_bbox.col_start 
 			col_end = self.latest_clicked_bbox.col_end
 			self.top_img_view.setImage(self.input_array_zmax[row_start:row_end,col_start:col_end,:])
+			img_chunk = self.input_array[:,row_start:row_end,col_start:col_end,:]
+			self.top_scan_img_view.setImage(img_chunk)
+			self.side_img_view.setImage(np.max(img_chunk, axis=1))
 		else:
 			self.statusBar().showMessage('adding bbox')
 			self.bbox_num += 1
