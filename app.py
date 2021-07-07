@@ -21,6 +21,7 @@ class Application(QMainWindow):
 		self.layout = QGridLayout()
 		self.bbox_num = 0
 		self.latest_clicked_bbox = None
+		self.side_view_mode = 0 # 1 or 2 depending on orientation, 0 if selector not clicked
 
 		# text
 		self.title = "3D Biondi Body Client"
@@ -34,6 +35,7 @@ class Application(QMainWindow):
 		# components (widgets)
 		self.central_widget = QWidget()
 		self.status_bar = self.statusBar()
+		self.change_side_view_btn = QPushButton('Change Side View')
 
 		# IMAGE ARRAY
 		self.input_array = np.load(self.filestate.get_file_name())
@@ -75,6 +77,7 @@ class Application(QMainWindow):
 		self.layout.addWidget(self.top_img_view, 0, 2, 1, 1)
 		self.layout.addWidget(self.top_scan_img_view, 1, 2, 1, 1)
 		self.layout.addWidget(self.side_img_view, 0, 3, 2, 1)
+		self.layout.addWidget(self.change_side_view_btn,2 ,3)
 
 		self.central_widget.setLayout(self.layout)
 
@@ -86,6 +89,9 @@ class Application(QMainWindow):
 		# image view 
 		self.img_view.scene.sigMouseClicked.connect(self.mouseClicked)
 		self.img_view_item = self.img_view.getImageItem()
+
+		# buttons
+		self.change_side_view_btn.clicked.connect(self.change_side_view_btn_clicked)
 		
 	def mouseHoverEvent(self, items):
 		'''
@@ -117,9 +123,12 @@ class Application(QMainWindow):
 			col_start = self.latest_clicked_bbox.col_start 
 			col_end = self.latest_clicked_bbox.col_end
 			self.top_img_view.setImage(self.input_array_zmax[row_start:row_end,col_start:col_end,:])
-			img_chunk = self.input_array[:,row_start:row_end,col_start:col_end,:]
-			self.top_scan_img_view.setImage(img_chunk)
-			self.side_img_view.setImage(np.max(img_chunk, axis=1))
+			self.img_chunk = self.input_array[:,row_start:row_end,col_start:col_end,:]
+			self.top_scan_img_view.setImage(self.img_chunk)
+			self.side_view_1 = np.max(self.img_chunk, axis=1)
+			self.side_view_2 = np.max(self.img_chunk, axis=2)
+			self.side_view_mode = 1
+			self.side_img_view.setImage(self.side_view_1)
 		else:
 			self.statusBar().showMessage('adding bbox')
 			self.bbox_num += 1
@@ -129,5 +138,22 @@ class Application(QMainWindow):
 			added_bbox.sigRemoveRequested.connect(self.remove_item_from_plot)
 
 	def remove_item_from_plot(self):
+		'''
+		When the appropriate right click context menu item is selected, removes the 
+		item from the main image plot.
+		'''
 		self.img_plot.removeItem(self.sender())
+
+	def change_side_view_btn_clicked(self):
+		'''
+		Button to change side view of selected area.
+		Does nothing if a selected area is not clicked on.
+		'''
+		if self.side_view_mode == 1:
+			self.side_view_mode = 2
+			self.side_img_view.setImage(self.side_view_2)
+		elif self.side_view_mode == 2:
+			self.side_view_mode = 1
+			self.side_img_view.setImage(self.side_view_1)
+		
 
