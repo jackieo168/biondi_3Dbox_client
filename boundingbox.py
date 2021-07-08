@@ -8,6 +8,7 @@ class BoundingBox(pg.RectROI):
 		self.img_view_item = self.img_view.getImageItem()
 		self.init_x = x 
 		self.init_y = y 
+		self.num_associated_v_bounds = 0
 		super().__init__([self.init_x, self.init_y], size=[20,20], rotatable=False, resizable=True, removable=True)
 		# self.bbox = pg.RectROI([self.y, self.x], size=[10,10])
 
@@ -38,3 +39,12 @@ class BoundingBox(pg.RectROI):
 
 	def get_bbox_num(self):
 		return self.bbox_num
+
+	def get_num_associated_v_bounds(self):
+		return self.num_associated_v_bounds
+
+	def increment_num_associated_v_bounds(self):
+		self.num_associated_v_bounds += 1
+
+	def decrement_num_associated_v_bounds(self):
+		self.num_associated_v_bounds -= 1

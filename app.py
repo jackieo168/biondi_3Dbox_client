@@ -39,6 +39,7 @@ class Application(QMainWindow):
 
 		# IMAGE ARRAY
 		self.input_array = np.load(self.filestate.get_file_name())
+		self.input_array_depth, self.input_array_height, self.input_array_width, self.input_array_num_ch = self.input_array.shape 
 		self.input_array = self.input_array/np.max(self.input_array)
 		self.input_array_zmax = np.max(self.input_array, axis=0)
 
@@ -86,9 +87,12 @@ class Application(QMainWindow):
 		self.setGeometry(self.x, self.y, self.width, self.height)
 		self.setCentralWidget(self.central_widget)
 
-		# image view 
-		self.img_view.scene.sigMouseClicked.connect(self.mouseClicked)
-		self.img_view_item = self.img_view.getImageItem()
+		# image items
+		self.img_view_item = self.img_view.getImageItem() 
+
+		# mouse events
+		self.img_view.scene.sigMouseClicked.connect(self.main_plot_mouse_clicked)
+		self.side_img_view.scene.sigMouseClicked.connect(self.side_view_plot_mouse_clicked)
 
 		# buttons
 		self.change_side_view_btn.clicked.connect(self.change_side_view_btn_clicked)
@@ -102,7 +106,7 @@ class Application(QMainWindow):
 		if obj_detected:
 			self.status_bar.showMessage('object detected')
 
-	def mouseClicked(self, event):
+	def main_plot_mouse_clicked(self, event):
 		'''
 		For adding bboxes or changing existing bboxes in the main image view.
 		'''
@@ -114,28 +118,79 @@ class Application(QMainWindow):
 		items = self.img_view.scene.items(mouse_pos)
 		print(items)
 		bboxes_at_cursor = [item for item in items if isinstance(item, BoundingBox)]
-		if bboxes_at_cursor:
+		if bboxes_at_cursor: # SHOW THE DIFFERENT VIEWS FOR THE SELECTED DATA
 			self.status_bar.showMessage('bbox detected')
 			self.latest_clicked_bbox = bboxes_at_cursor[0] # take top-most bbox
-			self.latest_clicked_bbox.get_array_slice()
-			row_start = self.latest_clicked_bbox.row_start 
-			row_end = self.latest_clicked_bbox.row_end 
-			col_start = self.latest_clicked_bbox.col_start 
-			col_end = self.latest_clicked_bbox.col_end
-			self.top_img_view.setImage(self.input_array_zmax[row_start:row_end,col_start:col_end,:])
-			self.img_chunk = self.input_array[:,row_start:row_end,col_start:col_end,:]
-			self.top_scan_img_view.setImage(self.img_chunk)
-			self.side_view_1 = np.max(self.img_chunk, axis=1)
-			self.side_view_2 = np.max(self.img_chunk, axis=2)
-			self.side_view_mode = 1
-			self.side_img_view.setImage(self.side_view_1)
-		else:
+			self.refresh_top_and_side_views()
+		else: # DRAW THE BBOX
 			self.statusBar().showMessage('adding bbox')
-			self.bbox_num += 1
-			added_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
-			self.img_view.addItem(added_bbox)
-			added_bbox.sigRegionChanged.connect(added_bbox.get_array_slice)
-			added_bbox.sigRemoveRequested.connect(self.remove_item_from_plot)
+			self.clear_top_and_side_views()
+			self.draw_new_bbox(x, y)
+			
+
+	def draw_new_bbox(self, x, y):
+		'''
+		add a new bbox at specified x, y coordinates in main image view.
+		'''
+		self.bbox_num += 1
+		added_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
+		self.img_view.addItem(added_bbox)
+		added_bbox.sigRegionChanged.connect(added_bbox.get_array_slice)
+		added_bbox.sigRemoveRequested.connect(self.remove_item_from_plot)
+
+	def refresh_top_and_side_views(self):
+		'''
+		update top and side views with respective views of selected data.
+		'''
+		# get the bbox's bounds
+		self.latest_clicked_bbox.get_array_slice()
+		row_start = self.latest_clicked_bbox.row_start 
+		row_end = self.latest_clicked_bbox.row_end 
+		col_start = self.latest_clicked_bbox.col_start 
+		col_end = self.latest_clicked_bbox.col_end
+
+		# set the images in each of the views (top_img_view, top_scan_img_view, side_view_1, side_view_2)
+		self.top_img_view.setImage(self.input_array_zmax[row_start:row_end,col_start:col_end,:])
+		self.img_chunk = self.input_array[:,row_start:row_end,col_start:col_end,:]
+		self.top_scan_img_view.setImage(self.img_chunk)
+		self.side_view_1 = np.max(self.img_chunk, axis=1)
+		self.side_view_2 = np.max(self.img_chunk, axis=2)
+		self.side_view_mode = 1
+		self.side_img_view.setImage(self.side_view_1)
+
+	def clear_top_and_side_views(self):
+		'''
+		called when mouse has clicked away from the current bbox to draw a new one in the main plot.
+		clears the views and other related variables.
+		'''
+		self.top_img_view.clear()
+		self.top_scan_img_view.clear()
+		self.side_img_view.clear()
+		self.side_view_mode = 0
+		self.side_view_1 = None 
+		self.side_view_2 = None 
+		self.img_chunk = None
+
+	def side_view_plot_mouse_clicked(self, event):
+		'''
+		'''
+		self.side_img_view_item = self.side_img_view.getImageItem()
+		mouse_pos = event.scenePos()
+		img_pos = self.side_img_view_item.mapFromScene(mouse_pos)
+		y = img_pos.y()
+		self.add_v_bound(y)
+
+	def add_v_bound(self, y):
+		'''
+		'''
+		num_v_bounds = self.latest_clicked_bbox.get_num_associated_v_bounds()
+		if num_v_bounds < 2:
+			self.latest_clicked_bbox.increment_num_associated_v_bounds()
+			# add a vertical bound
+			self.status_bar.showMessage('adding vertical bounds')
+			line = pg.LineSegmentROI(positions=((0,y),(self.side_img_view.width(),y)))
+			self.side_img_view.addItem(line)
+		# else, do nothing
 
 	def remove_item_from_plot(self):
 		'''
