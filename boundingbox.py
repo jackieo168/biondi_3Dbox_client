@@ -3,14 +3,14 @@ import pyqtgraph as pg
 class BoundingBox(pg.RectROI):
 	def __init__(self, bbox_num, img, img_view, x, y):
 		self.bbox_num = bbox_num
-		self.img = img
+		self.img = img # numpy array
 		self.img_view = img_view
 		self.img_view_item = self.img_view.getImageItem()
-		self.init_x = x 
-		self.init_y = y 
+		init_x = x 
+		init_y = y 
 		self.num_associated_v_bounds = 0
-		super().__init__([self.init_x, self.init_y], size=[20,20], rotatable=False, resizable=True, removable=True)
-		# self.bbox = pg.RectROI([self.y, self.x], size=[10,10])
+		self.associated_v_bounds = []
+		super().__init__([init_x, init_y], size=[20,20], rotatable=False, resizable=True, removable=True)
 
 		# ## handles scaling horizontally around center
 		self.addScaleHandle([1, 0.5], [0, 0.5]) #append the box with dragable handles
@@ -48,3 +48,9 @@ class BoundingBox(pg.RectROI):
 
 	def decrement_num_associated_v_bounds(self):
 		self.num_associated_v_bounds -= 1
+
+	def add_associated_v_bound(self, v_bound):
+		self.associated_v_bounds.append(v_bound)
+
+	def get_associated_v_bounds(self):
+		return self.associated_v_bounds

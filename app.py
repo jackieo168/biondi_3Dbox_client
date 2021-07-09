@@ -1,6 +1,3 @@
-# import tkinter as tk 
-# from tkinter import ttk
-# from PIL import Image, ImageTk
 import os
 import numpy as np
 
@@ -120,6 +117,7 @@ class Application(QMainWindow):
 		bboxes_at_cursor = [item for item in items if isinstance(item, BoundingBox)]
 		if bboxes_at_cursor: # SHOW THE DIFFERENT VIEWS FOR THE SELECTED DATA
 			self.status_bar.showMessage('bbox detected')
+			self.clear_top_and_side_views()
 			self.latest_clicked_bbox = bboxes_at_cursor[0] # take top-most bbox
 			self.refresh_top_and_side_views()
 		else: # DRAW THE BBOX
@@ -136,7 +134,7 @@ class Application(QMainWindow):
 		added_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
 		self.img_view.addItem(added_bbox)
 		added_bbox.sigRegionChanged.connect(added_bbox.get_array_slice)
-		added_bbox.sigRemoveRequested.connect(self.remove_item_from_plot)
+		added_bbox.sigRemoveRequested.connect(self.remove_item_from_img_plot)
 
 	def refresh_top_and_side_views(self):
 		'''
@@ -158,6 +156,13 @@ class Application(QMainWindow):
 		self.side_view_mode = 1
 		self.side_img_view.setImage(self.side_view_1)
 
+		self.show_v_bounds()
+
+	def show_v_bounds(self):
+		# show v_bounds if any 
+		for v_bound in self.latest_clicked_bbox.get_associated_v_bounds():
+			self.side_img_view.addItem(v_bound)
+
 	def clear_top_and_side_views(self):
 		'''
 		called when mouse has clicked away from the current bbox to draw a new one in the main plot.
@@ -171,28 +176,41 @@ class Application(QMainWindow):
 		self.side_view_2 = None 
 		self.img_chunk = None
 
+		if self.latest_clicked_bbox:
+			self.clear_v_bounds()
+
+	def clear_v_bounds(self):
+		# clear v_bounds if any 
+		for v_bound in self.latest_clicked_bbox.get_associated_v_bounds():
+			self.side_img_view.removeItem(v_bound)
+
 	def side_view_plot_mouse_clicked(self, event):
 		'''
+		called when mouse clicks on side_img_view
 		'''
 		self.side_img_view_item = self.side_img_view.getImageItem()
 		mouse_pos = event.scenePos()
 		img_pos = self.side_img_view_item.mapFromScene(mouse_pos)
 		y = img_pos.y()
 		self.add_v_bound(y)
+		
 
 	def add_v_bound(self, y):
 		'''
+		adds vertical bounding lines to side_img_view
 		'''
+		self.status_bar.showMessage('')
 		num_v_bounds = self.latest_clicked_bbox.get_num_associated_v_bounds()
 		if num_v_bounds < 2:
 			self.latest_clicked_bbox.increment_num_associated_v_bounds()
 			# add a vertical bound
 			self.status_bar.showMessage('adding vertical bounds')
-			line = pg.LineSegmentROI(positions=((0,y),(self.side_img_view.width(),y)))
-			self.side_img_view.addItem(line)
+			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
+			self.latest_clicked_bbox.add_associated_v_bound(v_bound) 
+			self.side_img_view.addItem(v_bound)
 		# else, do nothing
 
-	def remove_item_from_plot(self):
+	def remove_item_from_img_plot(self):
 		'''
 		When the appropriate right click context menu item is selected, removes the 
 		item from the main image plot.
