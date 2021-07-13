@@ -10,6 +10,7 @@ import pyqtgraph as pg
 from PyQt5.QtGui import *
 
 from boundingbox import BoundingBox
+from database import Database
 
 class Application(QMainWindow):
 	def __init__(self, filestate):
@@ -48,6 +49,9 @@ class Application(QMainWindow):
 
 		# initialize UI
 		self.init_UI()
+
+		# initialize database
+		self.db = Database(self.filestate.get_save_dir())
 		
 	def init_UI(self):
 		"""
@@ -56,7 +60,7 @@ class Application(QMainWindow):
 		# set up global config options for pyqtgraph
 		pg.setConfigOptions(imageAxisOrder='row-major')
 
-		# set up central widget
+		# set up image views
 		self.img_plot.enableAutoScale()		
 		self.img_view = pg.ImageView(view=self.img_plot) # create image view widget with view as the image plot widget
 		self.img_view.setImage(self.input_array_zmax) # set its image
@@ -70,7 +74,7 @@ class Application(QMainWindow):
 		self.side_view_plot.enableAutoScale()
 		self.side_img_view = pg.ImageView(view=self.side_view_plot)
 
-		# add to layout
+		# add image views to layout
 		self.layout.addWidget(self.img_view, 0, 0, 2, 2)
 		self.layout.addWidget(self.top_img_view, 0, 2, 1, 1)
 		self.layout.addWidget(self.top_scan_img_view, 1, 2, 1, 1)
@@ -87,11 +91,11 @@ class Application(QMainWindow):
 		# image items
 		self.img_view_item = self.img_view.getImageItem() 
 
-		# mouse events
-		self.img_view.scene.sigMouseClicked.connect(self.main_plot_mouse_clicked)
-		self.side_img_view.scene.sigMouseClicked.connect(self.side_view_plot_mouse_clicked)
+		# set up mouse events for various image views
+		self.img_view.scene.sigMouseClicked.connect(self.main_view_mouse_clicked)
+		self.side_img_view.scene.sigMouseClicked.connect(self.side_view_mouse_clicked)
 
-		# buttons
+		# set up button events
 		self.change_side_view_btn.clicked.connect(self.change_side_view_btn_clicked)
 		
 	def mouseHoverEvent(self, items):
@@ -103,7 +107,7 @@ class Application(QMainWindow):
 		if obj_detected:
 			self.status_bar.showMessage('object detected')
 
-	def main_plot_mouse_clicked(self, event):
+	def main_view_mouse_clicked(self, event):
 		'''
 		For adding bboxes or changing existing bboxes in the main image view.
 		'''
@@ -115,14 +119,13 @@ class Application(QMainWindow):
 		items = self.img_view.scene.items(mouse_pos)
 		print(items)
 		bboxes_at_cursor = [item for item in items if isinstance(item, BoundingBox)]
+		self.clear_top_and_side_views()
 		if bboxes_at_cursor: # SHOW THE DIFFERENT VIEWS FOR THE SELECTED DATA
 			self.status_bar.showMessage('bbox detected')
-			self.clear_top_and_side_views()
 			self.latest_clicked_bbox = bboxes_at_cursor[0] # take top-most bbox
 			self.refresh_top_and_side_views()
 		else: # DRAW THE BBOX
-			self.statusBar().showMessage('adding bbox')
-			self.clear_top_and_side_views()
+			self.status_bar.showMessage('adding bbox')
 			self.draw_new_bbox(x, y)
 			
 
@@ -131,10 +134,16 @@ class Application(QMainWindow):
 		add a new bbox at specified x, y coordinates in main image view.
 		'''
 		self.bbox_num += 1
-		added_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
-		self.img_view.addItem(added_bbox)
-		added_bbox.sigRegionChanged.connect(added_bbox.get_array_slice)
-		added_bbox.sigRemoveRequested.connect(self.remove_item_from_img_plot)
+		self.latest_clicked_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
+		self.img_view.addItem(self.latest_clicked_bbox)
+		self.update_database()
+		self.latest_clicked_bbox.sigRegionChangeFinished.connect(self.update_database)
+		self.latest_clicked_bbox.sigRemoveRequested.connect(self.remove_item_from_main_img_plot)
+
+	def update_database(self):
+		self.latest_clicked_bbox.get_array_slice()
+		annotation = self.latest_clicked_bbox.get_parameters()
+		self.db.add_or_update_annotation(annotation)
 
 	def refresh_top_and_side_views(self):
 		'''
@@ -142,10 +151,11 @@ class Application(QMainWindow):
 		'''
 		# get the bbox's bounds
 		self.latest_clicked_bbox.get_array_slice()
-		row_start = self.latest_clicked_bbox.row_start 
-		row_end = self.latest_clicked_bbox.row_end 
-		col_start = self.latest_clicked_bbox.col_start 
-		col_end = self.latest_clicked_bbox.col_end
+		# row_start = self.latest_clicked_bbox.row_start 
+		# row_end = self.latest_clicked_bbox.row_end 
+		# col_start = self.latest_clicked_bbox.col_start 
+		# col_end = self.latest_clicked_bbox.col_end
+		bbox_id, row_start, row_end, col_start, col_end, z_start, z_end = self.latest_clicked_bbox.get_parameters()
 
 		# set the images in each of the views (top_img_view, top_scan_img_view, side_view_1, side_view_2)
 		self.top_img_view.setImage(self.input_array_zmax[row_start:row_end,col_start:col_end,:])
@@ -184,7 +194,7 @@ class Application(QMainWindow):
 		for v_bound in self.latest_clicked_bbox.get_associated_v_bounds():
 			self.side_img_view.removeItem(v_bound)
 
-	def side_view_plot_mouse_clicked(self, event):
+	def side_view_mouse_clicked(self, event):
 		'''
 		called when mouse clicks on side_img_view
 		'''
@@ -208,14 +218,20 @@ class Application(QMainWindow):
 			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
 			self.latest_clicked_bbox.add_associated_v_bound(v_bound) 
 			self.side_img_view.addItem(v_bound)
+			self.update_database()
+			v_bound.sigPositionChangeFinished.connect(self.update_database)
 		# else, do nothing
 
-	def remove_item_from_img_plot(self):
+	def remove_item_from_main_img_plot(self):
 		'''
 		When the appropriate right click context menu item is selected, removes the 
 		item from the main image plot.
 		'''
-		self.img_plot.removeItem(self.sender())
+		item = self.sender() # bbox
+		self.img_plot.removeItem(item)
+		annotation = item.get_parameters()
+		bbox_id = annotation[0]
+		self.db.delete_annotation(bbox_id)
 
 	def change_side_view_btn_clicked(self):
 		'''
@@ -229,4 +245,12 @@ class Application(QMainWindow):
 			self.side_view_mode = 1
 			self.side_img_view.setImage(self.side_view_1)
 		
-
+	def closeEvent(self, event):
+		reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window?',
+				QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+		if reply == QMessageBox.Yes:
+			event.accept()
+			self.db.save_and_close()
+			print('Window closed')
+		else:
+			event.ignore()
