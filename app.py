@@ -13,9 +13,10 @@ from boundingbox import BoundingBox
 from database import Database
 
 class Application(QMainWindow):
-	def __init__(self, filestate):
+	def __init__(self, filestate, existing_case=False):
 		super().__init__()
 		self.filestate = filestate
+		self.existing_case = existing_case
 		self.layout = QGridLayout()
 		self.bbox_num = 0
 		self.latest_clicked_bbox = None

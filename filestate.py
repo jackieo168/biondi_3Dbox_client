@@ -1,14 +1,17 @@
 # the Model
 
 class FileState:
-	def __init__(self):
+	def __init__(self, existing_case=False):
 		"""
 		Initializes the filename and save directory
 		"""
 		self.filename = None
 		self.savedir = None
+		self.source_db_name = None 
+		self.save_db_name = None
+		self.existing_case = existing_case
 
-	def is_valid(self, filename):
+	def is_valid(self, filename, extension):
 		"""
 		returns True if the file exists and can be
 		opened.  Returns False otherwise.
@@ -16,7 +19,7 @@ class FileState:
 		try: 
 			file = open( filename, 'r' )
 			file.close()
-			return True and filename.lower().endswith('.npy')
+			return True and filename.lower().endswith(extension)
 		except:
 			return False
 

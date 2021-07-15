@@ -9,7 +9,8 @@ by default, a BEGIN statement is issued, which disables autocommit.
 class Database:
 	def __init__(self, parent_dir):
 		self.parent_dir = parent_dir
-		self.database_path = os.path.join(parent_dir, "database.db")
+		self.db_name = "database.db"
+		self.database_path = os.path.join(parent_dir, self.db_name)
 
 		try:
 			self.conn = sqlite3.connect(self.database_path)
