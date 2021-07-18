@@ -17,6 +17,7 @@ class Application(QMainWindow):
 		super().__init__()
 		self.filestate = filestate
 		self.existing_case = existing_case
+
 		self.layout = QGridLayout()
 		self.bbox_num = 0
 		self.latest_clicked_bbox = None
@@ -37,7 +38,7 @@ class Application(QMainWindow):
 		self.change_side_view_btn = QPushButton('Change Side View')
 
 		# IMAGE ARRAY
-		self.input_array = np.load(self.filestate.get_file_name())
+		self.input_array = np.load(self.filestate.get_source_img_filename())
 		self.input_array_depth, self.input_array_height, self.input_array_width, self.input_array_num_ch = self.input_array.shape 
 		self.input_array = self.input_array/np.max(self.input_array)
 		self.input_array_zmax = np.max(self.input_array, axis=0)
@@ -52,7 +53,7 @@ class Application(QMainWindow):
 		self.init_UI()
 
 		# initialize database
-		self.db = Database(self.filestate.get_save_dir())
+		self.db = Database(self.filestate.get_sink_db_filename())
 		
 	def init_UI(self):
 		"""

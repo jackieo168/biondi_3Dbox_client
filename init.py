@@ -63,11 +63,12 @@ class OpeningWindow(QWidget):
         """
         sender = self.sender()
         if sender.text() == 'Initiate New Case':
+            # self.hide()
             self.file_dlg = FileDialog(self, False)
-            self.file_dlg.show()
         elif sender.text() == 'Continue on Existing Case':
             # TODO
-            pass
+            self.file_dlg = FileDialog(self, True)
+        self.file_dlg.show()
 
 
 if __name__=="__main__":

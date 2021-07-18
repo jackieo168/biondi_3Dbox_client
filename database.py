@@ -7,10 +7,11 @@ autocommit mode not on by default.
 by default, a BEGIN statement is issued, which disables autocommit.
 '''
 class Database:
-	def __init__(self, parent_dir):
-		self.parent_dir = parent_dir
-		self.db_name = "database.db"
-		self.database_path = os.path.join(parent_dir, self.db_name)
+	def __init__(self, sink_db_filename):
+		# self.parent_dir = parent_dir
+		# self.db_name = "database.db"
+		# self.database_path = os.path.join(parent_dir, self.db_name)
+		self.database_path = sink_db_filename
 
 		try:
 			self.conn = sqlite3.connect(self.database_path)
