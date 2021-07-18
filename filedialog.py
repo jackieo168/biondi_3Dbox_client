@@ -168,6 +168,10 @@ class FileDialog(QDialog):
         sink_db_filename = os.path.join(sink_dir_name, sink_db_name_entry_text + db_ext) 
         source_db_filename = ""
 
+        # print("source img filename: ", source_img_filename)
+        # print("sink dir name: ", sink_dir_name)
+        # print("sink db filename: ", sink_db_filename)
+
         source_img_filename_valid = self.filestate.is_valid(source_img_filename, ".npy")
         sink_dir_name_valid = self.filestate.is_valid(sink_dir_name, None)
         sink_db_filename_valid = self.filestate.is_valid(sink_db_filename, ".db")
@@ -179,11 +183,14 @@ class FileDialog(QDialog):
         all_paths_valid = source_img_filename_valid and sink_dir_name_valid and sink_db_filename_valid
 
         if self.existing_case:
+            # print('checking if source db filename is valid')
             source_db_filename = self.source_db_entry.text()
+            # print("source db filename: ", source_db_filename)
             source_db_filename_valid = self.filestate.is_valid(source_db_filename, ".db")
             all_paths_valid = all_paths_valid and source_db_filename_valid
         
         if all_paths_valid:
+            # print("all paths are valid")
             self.filestate.set_source_img_filename(source_img_filename)
             self.filestate.set_sink_dir_name(sink_dir_name)
             self.filestate.set_sink_db_filename(sink_db_filename)
@@ -193,16 +200,19 @@ class FileDialog(QDialog):
             return True
 
         if not source_img_filename_valid:
+            # print("source img filename invalid")
             self.display_warning_message("Invalid image file type (must be .npy) or file does not exist.\n")
             self.filestate.set_source_img_filename("")
         if not source_db_filename_valid: # only if existing case
+            # print("source db filename invalid")
             self.display_warning_message("Invalid source database file type (must be .db) or file does not exist.\n")
             self.filestate.set_source_db_filename("")
         if not sink_dir_name_valid:
+            # print("sink dir name invalid")
             self.display_warning_message("Invalid sink directory or directory does not exist.\n")
             self.filestate.set_sink_dir_name("")
-        if not sink_db_filename_valid and not re.match(r" *.db", sink_db_filename): # if the sink db is invalid and it's not because its something like ".db" or " .db"
-            if sink_dir_name_valid and self.display_yes_no_message("Create file at " + sink_db_filename + "?"):
+        if not sink_db_filename_valid: # if the sink db is invalid and it's not because its something like ".db" or " .db"
+            if sink_dir_name_valid and not re.match(r" *.db", sink_db_filename) and self.display_yes_no_message("Create file at " + sink_db_filename + "?"):
                 # create file with read write permissions
                 sink_db_file = open(sink_db_filename, "w+")
                 sink_db_file.close()
@@ -211,9 +221,11 @@ class FileDialog(QDialog):
                 self.refresh_UI()
                 return True
             else:
+                # print("sink db filename invalid")
                 self.display_warning_message("Invalid sink database file type (must be .db) or file does not exist. Be sure to specify a name for the sink database.\n")
                 self.filestate.set_sink_db_filename("")
 
+        # print("paths invalid")
         self.refresh_UI()
         return False
 

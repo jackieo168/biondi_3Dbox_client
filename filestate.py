@@ -19,11 +19,13 @@ class FileState:
 		"""
 		path_obj = Path(path)
 		exists = path_obj.exists()
-		is_file = path_obj.is_file()
-		is_dir = path_obj.is_dir()
+		is_file = path_obj.is_file() and extension # extension is not None. Catches bug where blank path is valid.
+		is_dir = path_obj.is_dir() and not extension
 		if exists and is_file:
+			# print(path, "exists and is file")
 			return path.lower().endswith(extension)
 		else:
+			# print(path + "exists and is dir " + str(exists and is_dir))
 			return exists and is_dir
 
 	def set_sink_db_filename(self, sink_db_filename):
