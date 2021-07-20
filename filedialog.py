@@ -5,6 +5,8 @@ from app import Application
 import os
 import re
 
+from messages import *
+
 class FileDialog(QDialog):
     def __init__(self, parent=None, existing_case=False):
         super().__init__(parent)
@@ -89,20 +91,20 @@ class FileDialog(QDialog):
         self.setGeometry(self.x, self.y, self.width, self.height)
         self.setWindowTitle(self.title)
 
-    def display_warning_message(self, msg):
-        """
-        displays msg in message box widget.
-        """
-        reply = QMessageBox.warning(self, 'Warning', msg,
-                QMessageBox.Ok, QMessageBox.Ok)
+    # def display_warning_message(self, msg):
+    #     """
+    #     displays msg in message box widget.
+    #     """
+    #     reply = QMessageBox.warning(self, 'Warning', msg,
+    #             QMessageBox.Ok, QMessageBox.Ok)
 
-    def display_yes_no_message(self, msg):
-        reply = QMessageBox.question(self, 'Warning', msg,
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            return True
-        else:
-            return False
+    # def display_yes_no_message(self, msg):
+    #     reply = QMessageBox.question(self, 'Warning', msg,
+    #             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+    #     if reply == QMessageBox.Yes:
+    #         return True
+    #     else:
+    #         return False
 
     def on_sink_dir_browse_btn_click(self):
         '''
@@ -201,18 +203,18 @@ class FileDialog(QDialog):
 
         if not source_img_filename_valid:
             # print("source img filename invalid")
-            self.display_warning_message("Invalid image file type (must be .npy) or file does not exist.\n")
+            display_warning_message(self, "Invalid image file type (must be .npy) or file does not exist.\n")
             self.filestate.set_source_img_filename("")
         if not source_db_filename_valid: # only if existing case
             # print("source db filename invalid")
-            self.display_warning_message("Invalid source database file type (must be .db) or file does not exist.\n")
+            display_warning_message(self, "Invalid source database file type (must be .db) or file does not exist.\n")
             self.filestate.set_source_db_filename("")
         if not sink_dir_name_valid:
             # print("sink dir name invalid")
-            self.display_warning_message("Invalid sink directory or directory does not exist.\n")
+            display_warning_message(self, "Invalid sink directory or directory does not exist.\n")
             self.filestate.set_sink_dir_name("")
         if not sink_db_filename_valid: # if the sink db is invalid and it's not because its something like ".db" or " .db"
-            if sink_dir_name_valid and not re.match(r" *.db", sink_db_filename) and self.display_yes_no_message("Create file at " + sink_db_filename + "?"):
+            if sink_dir_name_valid and not re.match(r" *.db", sink_db_filename) and display_yes_no_message(self, "Create file at " + sink_db_filename + "?"):
                 # create file with read write permissions
                 sink_db_file = open(sink_db_filename, "w+")
                 sink_db_file.close()
@@ -222,7 +224,7 @@ class FileDialog(QDialog):
                 return True
             else:
                 # print("sink db filename invalid")
-                self.display_warning_message("Invalid sink database file type (must be .db) or file does not exist. Be sure to specify a name for the sink database.\n")
+                display_warning_message(self, "Invalid sink database file type (must be .db) or file does not exist. Be sure to specify a name for the sink database.\n")
                 self.filestate.set_sink_db_filename("")
 
         # print("paths invalid")
@@ -236,7 +238,7 @@ class FileDialog(QDialog):
         # check once more that the paths in the line edit are valid
         valid_paths = self.check_paths()
         if valid_paths:
-            valid_paths = self.display_yes_no_message("If you chose an existing .db file as a sink, it will be overwritten. If you are initiating a new case, the specified sink .db file will be replaced. Do you wish to proceed?")
+            valid_paths = display_yes_no_message(self, "If you chose an existing .db file as a sink, it will be overwritten. If you are initiating a new case, the specified sink .db file will be replaced. Do you wish to proceed?")
 
         if valid_paths:
             self.hide()

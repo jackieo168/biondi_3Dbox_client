@@ -27,8 +27,7 @@ class BoundingBox(pg.RectROI):
 		self.addScaleHandle([1, 1], [0, 0])
 
 	def get_array_slice(self):
-		print("array slice changed")
-		self.selected_data_zproj = self.getArrayRegion(self.img, self.img_view_item, returnMappedCoords=True)
+		# self.selected_data_zproj = self.getArrayRegion(self.img, self.img_view_item, returnMappedCoords=True)
 		self.selected_data_zproj_slice = self.getArraySlice(self.img, self.img_view_item, returnSlice=True)
 		selected_data_zproj_slice_obj = self.selected_data_zproj_slice[0]
 		selected_data_zproj_slice_obj_0 = selected_data_zproj_slice_obj[0]
@@ -51,14 +50,16 @@ class BoundingBox(pg.RectROI):
 		self.num_associated_v_bounds -= 1
 
 	def add_associated_v_bound(self, v_bound):
-		self.associated_v_bounds.append(v_bound)
+		if v_bound:
+			self.associated_v_bounds.append(v_bound)
+			self.increment_num_associated_v_bounds()
 
 	def get_associated_v_bounds(self):
 		return self.associated_v_bounds
 
 	def get_parameters(self):
 		'''
-		bbox_id, row_start, row_end, col_start, col_end, z_start, z_end
+		bbox_id, row_start, row_end, col_start, col_end, z_start, z_end of annotation
 		'''
 		z_start, z_end = 'NULL', 'NULL'
 		if self.num_associated_v_bounds > 0:

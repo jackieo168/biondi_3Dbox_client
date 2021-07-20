@@ -17,9 +17,9 @@ class Database:
 			self.conn = sqlite3.connect(self.database_path)
 			self.cursor = self.conn.cursor()
 		except sqlite3.Error as error:
-			print("Error while connecting to sqlite", error)
-			self.conn.close()
+			print("Error while connecting to sink database: ", error)
 			self.cursor.close()
+			self.conn.close()
 
 		self.initiate_database()
 

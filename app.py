@@ -1,28 +1,45 @@
-import os
 import numpy as np
-
-# importing Qt widgets
 from PyQt5.QtWidgets import * 
-import sys
-  
-# importing pyqtgraph as pg
 import pyqtgraph as pg
-from PyQt5.QtGui import *
-
 from boundingbox import BoundingBox
 from database import Database
+import sqlite3
+from messages import *
+
+"""
+Main Application Window:
+- main image view: displays plot of max z-projection of input 4d tensor image (.npy)
+- top view: displays selected portion of image
+- top scan view: same as top view but has a slider that allows you to scan through all layers of selected portion
+- side view: displays vertical side view (z-axis) of selected portion of image
+	- change side view button: allows you to view the different side views of the image slice
+
+Usage:
+- to add bbox, click on the main image view. adjust bbox dimensions by dragging its handles.
+- to add vertical bounds, click on a bbox, then click on the side view. a horizontal line will be added where you click.
+
+Everything change is saved to the specified sink database.
+"""
 
 class Application(QMainWindow):
 	def __init__(self, filestate, existing_case=False):
 		super().__init__()
 		self.filestate = filestate
 		self.existing_case = existing_case
+		if self.existing_case:
+			self.est_source_db_connection()
 
-		self.layout = QGridLayout()
+		
 		self.bbox_num = 0
+		if self.existing_case:
+			self.bbox_num = self.read_next_bbox_num_from_source_db()
+
+
 		self.latest_clicked_bbox = None
 		self.side_view_mode = 0 # 1 or 2 depending on orientation, 0 if selector not clicked
 
+		self.layout = QGridLayout()
+		
 		# text
 		self.title = "3D Biondi Body Client"
 
@@ -49,11 +66,14 @@ class Application(QMainWindow):
 		self.top_scan_view_plot = pg.PlotItem()
 		self.side_view_plot = pg.PlotItem()
 
+		# initialize bbox_id: bbox object dictionary
+		self.bbox_by_id_dict = {}
+
 		# initialize UI
 		self.init_UI()
 
 		# initialize database
-		self.db = Database(self.filestate.get_sink_db_filename())
+		self.sink_db = Database(self.filestate.get_sink_db_filename())
 		
 	def init_UI(self):
 		"""
@@ -63,18 +83,22 @@ class Application(QMainWindow):
 		pg.setConfigOptions(imageAxisOrder='row-major')
 
 		# set up image views
-		self.img_plot.enableAutoScale()		
-		self.img_view = pg.ImageView(view=self.img_plot) # create image view widget with view as the image plot widget
+		self.img_plot.enableAutoScale()	
+		self.img_plot.setTitle("Main Image View")	
+		self.img_view = pg.ImageView(name="Main Image View", view=self.img_plot) # create image view widget with view as the image plot widget
 		self.img_view.setImage(self.input_array_zmax) # set its image
 		
 		self.top_view_plot.enableAutoScale()
-		self.top_img_view = pg.ImageView(view=self.top_view_plot)
+		self.top_view_plot.setTitle("Top Image View")
+		self.top_img_view = pg.ImageView(name="Top Image View", view=self.top_view_plot)
 
 		self.top_scan_view_plot.enableAutoScale()
-		self.top_scan_img_view = pg.ImageView(view=self.top_scan_view_plot)
+		self.top_scan_view_plot.setTitle("Top Scan Image View")
+		self.top_scan_img_view = pg.ImageView(name="Top Scan Image View", view=self.top_scan_view_plot)
 
 		self.side_view_plot.enableAutoScale()
-		self.side_img_view = pg.ImageView(view=self.side_view_plot)
+		self.side_view_plot.setTitle("Side Image View")
+		self.side_img_view = pg.ImageView(name="Side Image View", view=self.side_view_plot)
 
 		# add image views to layout
 		self.layout.addWidget(self.img_view, 0, 0, 2, 2)
@@ -99,53 +123,171 @@ class Application(QMainWindow):
 
 		# set up button events
 		self.change_side_view_btn.clicked.connect(self.change_side_view_btn_clicked)
-		
-	def mouseHoverEvent(self, items):
+
+		# load in bboxes and vbounds if existing case
+		if self.existing_case:
+			self.load_annotations_from_source_db()
+
+	#####################
+	# BBOX DICT METHODS #
+	#####################
+
+	def add_or_update_bbox_dict(self, bbox):
 		'''
-		Just used to detect if an object is under the mouse.
+		add to or update the bbox_by_id_dict
 		'''
-		self.status_bar.showMessage('')
-		obj_detected = any(not isinstance(item, pg.ImageItem) for item in items)
-		if obj_detected:
-			self.status_bar.showMessage('object detected')
+		self.bbox_by_id_dict[bbox.get_bbox_num()] = bbox
+
+	def delete_from_bbox_dict(self, bbox):
+		'''
+		delete from the bbox_by_id_dict
+		'''
+		removed_bbox = self.bbox_by_id_dict.pop(bbox.get_bbox_num())
+
+	def get_bbox_from_id(self, bbox_id):
+		'''
+		get bbox from bbox_id
+		'''
+		try:
+			return bbox_by_id_dict[bbox_id]
+		except KeyError as error:
+			print("bbox with id " + str(bbox_id) + " does not exist: ", error)
+
+	#####################
+	# SOURCE DB METHODS #
+	#####################
+
+	def est_source_db_connection(self):
+		'''
+		establish connection to source database if this is an existing case.
+		'''
+		source_db_filename = self.filestate.get_source_db_filename()
+		try:
+			self.source_db_conn = sqlite3.connect(source_db_filename)
+			self.source_db_cur = self.source_db_conn.cursor()
+		except sqlite3.Error as error:
+			self.handle_source_db_sqlite_error(error)
+
+	def handle_source_db_sqlite_error(self, error):
+		'''
+		handler for source db sqlite errors
+		'''
+		self.status_bar.showMessage("Source database error: " + error)
+		print("Source database error: ", error)
+		self.source_db_cur.close()
+		self.source_db_conn.close()
+		self.close()
+
+	def read_next_bbox_num_from_source_db(self):
+		'''
+		get the latest bbox number from source db
+		'''
+		try:
+			res = self.source_db_cur.execute("SELECT MAX(bbox_id) FROM annotations")
+			return res.fetchone()[0]
+		except sqlite3.Error as error:
+			self.handle_source_db_sqlite_error(error)
+
+	def load_annotations_from_source_db(self):
+		'''
+		read and draw bboxes from source db
+		'''
+		self.status_bar.showMessage("loading annotations from source db")
+		try:
+			res = self.source_db_cur.execute("SELECT * from annotations")
+			rows = res.fetchall()
+			for row in rows:
+				# BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
+				bbox_id, row_start, row_end, col_start, col_end, z_start, z_end = row
+				bbox = BoundingBox(bbox_id, self.input_array_zmax, self.img_view, col_start, row_start)
+				bbox_row_size = row_end - row_start
+				bbox_col_size = col_end - col_start
+				bbox.setSize([bbox_col_size, bbox_row_size])
+				z_start_bound = self.get_vboundline_from_yvalue(z_start)
+				z_end_bound = self.get_vboundline_from_yvalue(z_end)
+				bbox.add_associated_v_bound(z_start_bound)
+				bbox.add_associated_v_bound(z_end_bound)
+				self.add_bbox_to_main_view(bbox)
+				self.add_or_update_bbox_dict(bbox)
+			self.status_bar.showMessage("annotations successfully loaded from source db")
+
+		except sqlite3.Error as error:
+			self.handle_source_db_sqlite_error(error)
+
+
+	def get_vboundline_from_yvalue(self, y):
+		'''
+		return InfiniteLine corresponding to input y value
+		'''
+		v_bound = None
+		if y != 'NULL':
+			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
+		return v_bound
+
+
+	###################
+	# SINK DB METHODS #
+	###################
+
+	def add_or_update_sink_database(self):
+		'''
+		add or update sink db with current information on the latest interacted-with annotation.
+		called when bbox is added(drawn), dragged, changed in size and when vbounds are added, dragged. 
+		'''
+		self.latest_clicked_bbox.get_array_slice()
+		annotation = self.latest_clicked_bbox.get_parameters()
+		self.sink_db.add_or_update_annotation(annotation)
+
+	def delete_from_sink_database(self, bbox):
+		'''
+		deletes bbox from sink db.
+		called when bbox is deleted.
+		'''
+		annotation = bbox.get_parameters()
+		bbox_id = annotation[0]
+		self.sink_db.delete_annotation(bbox_id)
+
+	################
+	# MOUSE EVENTS #
+	################
 
 	def main_view_mouse_clicked(self, event):
 		'''
 		For adding bboxes or changing existing bboxes in the main image view.
 		'''
-		self.status_bar.showMessage('')
+		self.status_bar.showMessage("")
 		mouse_pos = event.scenePos()
 		img_pos = self.img_view_item.mapFromScene(mouse_pos)
 		x = img_pos.x()
 		y = img_pos.y()
 		items = self.img_view.scene.items(mouse_pos)
-		print(items)
+		# print(items)
 		bboxes_at_cursor = [item for item in items if isinstance(item, BoundingBox)]
 		self.clear_top_and_side_views()
 		if bboxes_at_cursor: # SHOW THE DIFFERENT VIEWS FOR THE SELECTED DATA
-			self.status_bar.showMessage('bbox detected')
+			self.status_bar.showMessage('bbox clicked')
 			self.latest_clicked_bbox = bboxes_at_cursor[0] # take top-most bbox
 			self.refresh_top_and_side_views()
 		else: # DRAW THE BBOX
-			self.status_bar.showMessage('adding bbox')
+			self.status_bar.showMessage('drawing new bbox')
 			self.draw_new_bbox(x, y)
 			
-
 	def draw_new_bbox(self, x, y):
 		'''
-		add a new bbox at specified x, y coordinates in main image view.
+		construct and add a new bbox at specified x, y coordinates in main image view.
 		'''
 		self.bbox_num += 1
 		self.latest_clicked_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
-		self.img_view.addItem(self.latest_clicked_bbox)
-		self.update_database()
-		self.latest_clicked_bbox.sigRegionChangeFinished.connect(self.update_database)
-		self.latest_clicked_bbox.sigRemoveRequested.connect(self.remove_item_from_main_img_plot)
+		self.add_or_update_sink_database()
+		self.add_bbox_to_main_view(self.latest_clicked_bbox)
 
-	def update_database(self):
-		self.latest_clicked_bbox.get_array_slice()
-		annotation = self.latest_clicked_bbox.get_parameters()
-		self.db.add_or_update_annotation(annotation)
+	def add_bbox_to_main_view(self, bbox):
+		'''
+		adds bbox to main image view and sets up its signals.
+		'''
+		self.img_view.addItem(bbox)
+		bbox.sigRegionChangeFinished.connect(self.add_or_update_sink_database)
+		bbox.sigRemoveRequested.connect(self.remove_item_from_main_img_plot)
 
 	def refresh_top_and_side_views(self):
 		'''
@@ -171,7 +313,9 @@ class Application(QMainWindow):
 		self.show_v_bounds()
 
 	def show_v_bounds(self):
-		# show v_bounds if any 
+		'''
+		show v_bounds if any 
+		'''
 		for v_bound in self.latest_clicked_bbox.get_associated_v_bounds():
 			self.side_img_view.addItem(v_bound)
 
@@ -192,7 +336,9 @@ class Application(QMainWindow):
 			self.clear_v_bounds()
 
 	def clear_v_bounds(self):
-		# clear v_bounds if any 
+		'''
+		clear v_bounds if any 
+		'''
 		for v_bound in self.latest_clicked_bbox.get_associated_v_bounds():
 			self.side_img_view.removeItem(v_bound)
 
@@ -209,19 +355,18 @@ class Application(QMainWindow):
 
 	def add_v_bound(self, y):
 		'''
-		adds vertical bounding lines to side_img_view
+		adds vertical (z-axis) bounding lines to side_img_view
 		'''
 		self.status_bar.showMessage('')
 		num_v_bounds = self.latest_clicked_bbox.get_num_associated_v_bounds()
 		if num_v_bounds < 2:
-			self.latest_clicked_bbox.increment_num_associated_v_bounds()
 			# add a vertical bound
 			self.status_bar.showMessage('adding vertical bounds')
 			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
 			self.latest_clicked_bbox.add_associated_v_bound(v_bound) 
 			self.side_img_view.addItem(v_bound)
-			self.update_database()
-			v_bound.sigPositionChangeFinished.connect(self.update_database)
+			self.add_or_update_sink_database()
+			v_bound.sigPositionChangeFinished.connect(self.add_or_update_sink_database)
 		# else, do nothing
 
 	def remove_item_from_main_img_plot(self):
@@ -229,11 +374,12 @@ class Application(QMainWindow):
 		When the appropriate right click context menu item is selected, removes the 
 		item from the main image plot.
 		'''
+		self.status_bar.showMessage("removed bbox")
 		item = self.sender() # bbox
 		self.img_plot.removeItem(item)
-		annotation = item.get_parameters()
-		bbox_id = annotation[0]
-		self.db.delete_annotation(bbox_id)
+		self.clear_top_and_side_views()
+		self.delete_from_sink_database(item)
+		self.delete_from_bbox_dict(item)
 
 	def change_side_view_btn_clicked(self):
 		'''
@@ -245,14 +391,17 @@ class Application(QMainWindow):
 			self.side_img_view.setImage(self.side_view_2)
 		elif self.side_view_mode == 2:
 			self.side_view_mode = 1
-			self.side_img_view.setImage(self.side_view_1)
+			self.side_img_view.setImage(self.side_view_1)		
 		
 	def closeEvent(self, event):
-		reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window?',
+		'''
+		upon closing window
+		'''
+		reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window? (Current work will be saved.)',
 				QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 		if reply == QMessageBox.Yes:
 			event.accept()
-			self.db.save_and_close()
+			self.sink_db.save_and_close()
 			print('Window closed')
 		else:
 			event.ignore()
