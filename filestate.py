@@ -1,5 +1,7 @@
 # the Model
 from pathlib import Path
+from constants import *
+import re
 
 class FileState:
 	def __init__(self, existing_case=False):
@@ -12,21 +14,48 @@ class FileState:
 		self.sink_db_filename = ""
 		self.existing_case = existing_case
 
-	def is_valid(self, path, extension):
+		self.source_img_file_exists = False
+		self.source_img_file_format_valid = False
+		self.source_db_file_exists = False
+		self.source_db_file_format_valid = False
+		self.sink_db_file_preexists = False
+		self.sink_db_file_format_valid = False
+		self.sink_dir_exists = False
+		self.sink_dir_format_valid = False
+
+	def is_valid(self, path, type=None):
 		"""
 		returns True if the path refers to an existing file with extension
 		or existing directory.
+
+		in the case of the sink db, if it doesn't exist already but the 
 		"""
 		path_obj = Path(path)
 		exists = path_obj.exists()
-		is_file = path_obj.is_file() and extension # extension is not None. Catches bug where blank path is valid.
-		is_dir = path_obj.is_dir() and not extension
-		if exists and is_file:
-			# print(path, "exists and is file")
-			return path.lower().endswith(extension)
-		else:
-			# print(path + "exists and is dir " + str(exists and is_dir))
-			return exists and is_dir
+		is_file = path_obj.is_file()
+		is_dir = path_obj.is_dir()
+
+		# check if sink dir valid. Should call is_valid on sink dir before calling on sink db.
+		if type == SINK_DIR:
+			self.sink_dir_exists = exists # could be a file
+			self.sink_dir_format_valid = is_dir
+			return self.sink_dir_exists and self.sink_dir_format_valid
+
+		# check cases for file
+		if type == SOURCE_IMG:
+			self.source_img_file_exists = exists and is_file
+			self.source_img_file_format_valid = path.lower().endswith(".npy")
+			return self.source_img_file_exists and self.source_img_file_format_valid
+		if type == SOURCE_DB:
+			self.source_db_file_exists = exists and is_file
+			self.source_db_file_format_valid = path.lower().endswith(".db")
+			return self.source_db_file_exists and self.source_db_file_format_valid
+		if type == SINK_DB:
+			self.sink_db_file_preexists = exists and is_file
+			self.sink_db_file_format_valid = path.lower().endswith(".db") and not re.match(r'\S* *.db', path)
+			return self.sink_db_file_preexists and self.sink_db_file_format_valid
+
+		return False
 
 	def set_sink_db_filename(self, sink_db_filename):
 		self.sink_db_filename = sink_db_filename

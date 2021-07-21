@@ -1,5 +1,4 @@
 import sys
-import napari
 import numpy as np
 from PyQt5.QtWidgets import * 
 from filedialog import FileDialog

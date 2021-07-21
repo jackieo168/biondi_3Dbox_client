@@ -73,7 +73,14 @@ class Application(QMainWindow):
 		self.init_UI()
 
 		# initialize database
-		self.sink_db = Database(self.filestate.get_sink_db_filename())
+		try:
+			self.sink_db = Database(self.filestate.get_sink_db_filename())
+			if not self.existing_case:
+				# clear contents of any preexisting annotations table
+				self.sink_db = Database(self.filestate.get_sink_db_filename(), True)
+		except sqlite3.Error as error:
+			self.handle_sink_db_sqlite_error(error)
+
 		
 	def init_UI(self):
 		"""
@@ -133,23 +140,23 @@ class Application(QMainWindow):
 	#####################
 
 	def add_or_update_bbox_dict(self, bbox):
-		'''
+		"""
 		add to or update the bbox_by_id_dict
-		'''
+		"""
 		self.bbox_by_id_dict[bbox.get_bbox_num()] = bbox
 
 	def delete_from_bbox_dict(self, bbox):
-		'''
+		"""
 		delete from the bbox_by_id_dict
-		'''
+		"""
 		removed_bbox = self.bbox_by_id_dict.pop(bbox.get_bbox_num())
 
 	def get_bbox_from_id(self, bbox_id):
-		'''
+		"""
 		get bbox from bbox_id
-		'''
+		"""
 		try:
-			return bbox_by_id_dict[bbox_id]
+			return self.bbox_by_id_dict[bbox_id]
 		except KeyError as error:
 			print("bbox with id " + str(bbox_id) + " does not exist: ", error)
 
@@ -158,9 +165,9 @@ class Application(QMainWindow):
 	#####################
 
 	def est_source_db_connection(self):
-		'''
+		"""
 		establish connection to source database if this is an existing case.
-		'''
+		"""
 		source_db_filename = self.filestate.get_source_db_filename()
 		try:
 			self.source_db_conn = sqlite3.connect(source_db_filename)
@@ -168,20 +175,20 @@ class Application(QMainWindow):
 		except sqlite3.Error as error:
 			self.handle_source_db_sqlite_error(error)
 
-	def handle_source_db_sqlite_error(self, error):
-		'''
+	def handle_source_db_sqlite_error(self, error=None):
+		"""
 		handler for source db sqlite errors
-		'''
-		self.status_bar.showMessage("Source database error: " + error)
-		print("Source database error: ", error)
+		"""
+		# self.status_bar.showMessage("Source database error: " + error)
+		if error: print("Source database error: ", error)
 		self.source_db_cur.close()
 		self.source_db_conn.close()
 		self.close()
 
 	def read_next_bbox_num_from_source_db(self):
-		'''
+		"""
 		get the latest bbox number from source db
-		'''
+		"""
 		try:
 			res = self.source_db_cur.execute("SELECT MAX(bbox_id) FROM annotations")
 			return res.fetchone()[0]
@@ -189,9 +196,9 @@ class Application(QMainWindow):
 			self.handle_source_db_sqlite_error(error)
 
 	def load_annotations_from_source_db(self):
-		'''
+		"""
 		read and draw bboxes from source db
-		'''
+		"""
 		self.status_bar.showMessage("loading annotations from source db")
 		try:
 			res = self.source_db_cur.execute("SELECT * from annotations")
@@ -210,15 +217,16 @@ class Application(QMainWindow):
 				self.add_bbox_to_main_view(bbox)
 				self.add_or_update_bbox_dict(bbox)
 			self.status_bar.showMessage("annotations successfully loaded from source db")
-
+			self.source_db_cur.close()
+			self.source_db_conn.close()
 		except sqlite3.Error as error:
 			self.handle_source_db_sqlite_error(error)
 
 
 	def get_vboundline_from_yvalue(self, y):
-		'''
+		"""
 		return InfiniteLine corresponding to input y value
-		'''
+		"""
 		v_bound = None
 		if y != 'NULL':
 			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
@@ -229,32 +237,46 @@ class Application(QMainWindow):
 	# SINK DB METHODS #
 	###################
 
+	def handle_sink_db_sqlite_error(self, error=None):
+		"""
+		handler for sink db sqlite errors
+		"""
+		# self.status_bar.showMessage("Sink database error: " + error)
+		if error: print("Sink database error: ", error)
+		self.close()
+
 	def add_or_update_sink_database(self):
-		'''
+		"""
 		add or update sink db with current information on the latest interacted-with annotation.
-		called when bbox is added(drawn), dragged, changed in size and when vbounds are added, dragged. 
-		'''
+		called when bbox is added(drawn), dragged, changed in size and when vbounds are added, dragged.
+		"""
 		self.latest_clicked_bbox.get_array_slice()
-		annotation = self.latest_clicked_bbox.get_parameters()
-		self.sink_db.add_or_update_annotation(annotation)
+		try:
+			annotation = self.latest_clicked_bbox.get_parameters()
+			self.sink_db.add_or_update_annotation(annotation)
+		except sqlite3.Error as error:
+			self.handle_sink_db_sqlite_error(error)
 
 	def delete_from_sink_database(self, bbox):
-		'''
+		"""
 		deletes bbox from sink db.
 		called when bbox is deleted.
-		'''
+		"""
 		annotation = bbox.get_parameters()
 		bbox_id = annotation[0]
-		self.sink_db.delete_annotation(bbox_id)
+		try:
+			self.sink_db.delete_annotation(bbox_id)
+		except sqlite3.Error as error:
+			self.handle_sink_db_sqlite_error(error)
 
 	################
 	# MOUSE EVENTS #
 	################
 
 	def main_view_mouse_clicked(self, event):
-		'''
+		"""
 		For adding bboxes or changing existing bboxes in the main image view.
-		'''
+		"""
 		self.status_bar.showMessage("")
 		mouse_pos = event.scenePos()
 		img_pos = self.img_view_item.mapFromScene(mouse_pos)
@@ -273,26 +295,26 @@ class Application(QMainWindow):
 			self.draw_new_bbox(x, y)
 			
 	def draw_new_bbox(self, x, y):
-		'''
+		"""
 		construct and add a new bbox at specified x, y coordinates in main image view.
-		'''
+		"""
 		self.bbox_num += 1
 		self.latest_clicked_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
 		self.add_or_update_sink_database()
 		self.add_bbox_to_main_view(self.latest_clicked_bbox)
 
 	def add_bbox_to_main_view(self, bbox):
-		'''
+		"""
 		adds bbox to main image view and sets up its signals.
-		'''
+		"""
 		self.img_view.addItem(bbox)
 		bbox.sigRegionChangeFinished.connect(self.add_or_update_sink_database)
 		bbox.sigRemoveRequested.connect(self.remove_item_from_main_img_plot)
 
 	def refresh_top_and_side_views(self):
-		'''
+		"""
 		update top and side views with respective views of selected data.
-		'''
+		"""
 		# get the bbox's bounds
 		self.latest_clicked_bbox.get_array_slice()
 		# row_start = self.latest_clicked_bbox.row_start 
@@ -313,17 +335,17 @@ class Application(QMainWindow):
 		self.show_v_bounds()
 
 	def show_v_bounds(self):
-		'''
-		show v_bounds if any 
-		'''
+		"""
+		show v_bounds if any
+		"""
 		for v_bound in self.latest_clicked_bbox.get_associated_v_bounds():
 			self.side_img_view.addItem(v_bound)
 
 	def clear_top_and_side_views(self):
-		'''
+		"""
 		called when mouse has clicked away from the current bbox to draw a new one in the main plot.
 		clears the views and other related variables.
-		'''
+		"""
 		self.top_img_view.clear()
 		self.top_scan_img_view.clear()
 		self.side_img_view.clear()
@@ -336,16 +358,16 @@ class Application(QMainWindow):
 			self.clear_v_bounds()
 
 	def clear_v_bounds(self):
-		'''
-		clear v_bounds if any 
-		'''
+		"""
+		clear v_bounds if any
+		"""
 		for v_bound in self.latest_clicked_bbox.get_associated_v_bounds():
 			self.side_img_view.removeItem(v_bound)
 
 	def side_view_mouse_clicked(self, event):
-		'''
+		"""
 		called when mouse clicks on side_img_view
-		'''
+		"""
 		self.side_img_view_item = self.side_img_view.getImageItem()
 		mouse_pos = event.scenePos()
 		img_pos = self.side_img_view_item.mapFromScene(mouse_pos)
@@ -354,9 +376,9 @@ class Application(QMainWindow):
 		
 
 	def add_v_bound(self, y):
-		'''
+		"""
 		adds vertical (z-axis) bounding lines to side_img_view
-		'''
+		"""
 		self.status_bar.showMessage('')
 		num_v_bounds = self.latest_clicked_bbox.get_num_associated_v_bounds()
 		if num_v_bounds < 2:
@@ -370,10 +392,10 @@ class Application(QMainWindow):
 		# else, do nothing
 
 	def remove_item_from_main_img_plot(self):
-		'''
-		When the appropriate right click context menu item is selected, removes the 
+		"""
+		When the appropriate right click context menu item is selected, removes the
 		item from the main image plot.
-		'''
+		"""
 		self.status_bar.showMessage("removed bbox")
 		item = self.sender() # bbox
 		self.img_plot.removeItem(item)
@@ -382,10 +404,10 @@ class Application(QMainWindow):
 		self.delete_from_bbox_dict(item)
 
 	def change_side_view_btn_clicked(self):
-		'''
+		"""
 		Button to change side view of selected area.
 		Does nothing if a selected area is not clicked on.
-		'''
+		"""
 		if self.side_view_mode == 1:
 			self.side_view_mode = 2
 			self.side_img_view.setImage(self.side_view_2)
@@ -394,9 +416,9 @@ class Application(QMainWindow):
 			self.side_img_view.setImage(self.side_view_1)		
 		
 	def closeEvent(self, event):
-		'''
+		"""
 		upon closing window
-		'''
+		"""
 		reply = QMessageBox.question(self, 'Window Close', 'Are you sure you want to close the window? (Current work will be saved.)',
 				QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 		if reply == QMessageBox.Yes:

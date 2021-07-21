@@ -6,6 +6,7 @@ import os
 import re
 
 from messages import *
+from constants import *
 
 class FileDialog(QDialog):
     def __init__(self, parent=None, existing_case=False):
@@ -85,31 +86,29 @@ class FileDialog(QDialog):
         self.dlg_layout.addLayout(self.form_layout)
         self.dlg_layout.addWidget(self.dlg_btns)
 
-
         # set file dialog properties
         self.setLayout(self.dlg_layout)
         self.setGeometry(self.x, self.y, self.width, self.height)
         self.setWindowTitle(self.title)
 
-    # def display_warning_message(self, msg):
-    #     """
-    #     displays msg in message box widget.
-    #     """
-    #     reply = QMessageBox.warning(self, 'Warning', msg,
-    #             QMessageBox.Ok, QMessageBox.Ok)
 
-    # def display_yes_no_message(self, msg):
-    #     reply = QMessageBox.question(self, 'Warning', msg,
-    #             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-    #     if reply == QMessageBox.Yes:
-    #         return True
-    #     else:
-    #         return False
+    def check_line_edits_and_refresh_filestate(self):
+        """
+        check line edits for modifications and refresh the filestate accordingly.
+        called on clicks to the browse buttons and ok.
+        """
+        # line edit changes (other places where filestate is updated: browse button clicks, ok click)
+        if self.source_img_entry.isModified():
+            self.filestate.set_source_img_filename(self.source_img_entry.text().replace("\\", "/"))
+        if self.existing_case and self.source_db_entry.isModified():
+            self.filestate.set_source_db_filename(self.source_db_entry.text().replace("\\", "/"))
+        if self.sink_dir_entry.isModified():
+            self.filestate.set_sink_dir_name(self.sink_dir_entry.text().replace("\\", "/"))
 
     def on_sink_dir_browse_btn_click(self):
-        '''
+        """
         when sink dir browse button is clicked.
-        '''
+        """
         dlg = QFileDialog()
         options = dlg.Options() 
         options |= QFileDialog.DontUseNativeDialog | QFileDialog.ShowDirsOnly
@@ -121,13 +120,14 @@ class FileDialog(QDialog):
 
         if sink_dir:
             self.filestate.set_sink_dir_name( sink_dir )
+            self.check_line_edits_and_refresh_filestate()
             self.refresh_UI()
 
 
     def on_source_db_browse_btn_click(self):
-        '''
+        """
         when source database browse button is clicked.
-        '''
+        """
         dlg = QFileDialog()
         options = dlg.Options() 
         options |= QFileDialog.DontUseNativeDialog
@@ -139,6 +139,7 @@ class FileDialog(QDialog):
                         options=options)
         if source_db_filename:
             self.filestate.set_source_db_filename( source_db_filename )
+            self.check_line_edits_and_refresh_filestate()
             self.refresh_UI()
 
     def on_source_img_browse_btn_click(self):
@@ -156,6 +157,7 @@ class FileDialog(QDialog):
                         options=options)
         if source_img_filename:
             self.filestate.set_source_img_filename( source_img_filename )
+            self.check_line_edits_and_refresh_filestate()
             self.refresh_UI()
 
 
@@ -163,20 +165,19 @@ class FileDialog(QDialog):
         """
         check that the paths are valid.
         """
-        source_img_filename = self.source_img_entry.text()
-        sink_dir_name = self.sink_dir_entry.text()
+        self.check_line_edits_and_refresh_filestate()
+        # paths
+        source_img_filename = self.source_img_entry.text().replace("\\","/")
+        sink_dir_name = self.sink_dir_entry.text().replace("\\","/")
         sink_db_name_entry_text = self.sink_db_name_entry.text()
         db_ext = ".db" if not sink_db_name_entry_text.lower().endswith(".db") else ""
-        sink_db_filename = os.path.join(sink_dir_name, sink_db_name_entry_text + db_ext) 
+        sink_db_filename = os.path.join(sink_dir_name, sink_db_name_entry_text + db_ext).replace("\\","/")
         source_db_filename = ""
 
-        # print("source img filename: ", source_img_filename)
-        # print("sink dir name: ", sink_dir_name)
-        # print("sink db filename: ", sink_db_filename)
-
-        source_img_filename_valid = self.filestate.is_valid(source_img_filename, ".npy")
-        sink_dir_name_valid = self.filestate.is_valid(sink_dir_name, None)
-        sink_db_filename_valid = self.filestate.is_valid(sink_db_filename, ".db")
+        # check validity
+        source_img_filename_valid = self.filestate.is_valid(source_img_filename, SOURCE_IMG)
+        sink_dir_name_valid = self.filestate.is_valid(sink_dir_name, SINK_DIR)
+        sink_db_filename_valid = self.filestate.is_valid(sink_db_filename, SINK_DB)
         source_db_filename_valid = True
         
         # check source img valid: if it's an existing file, return True; else, return False
@@ -185,14 +186,11 @@ class FileDialog(QDialog):
         all_paths_valid = source_img_filename_valid and sink_dir_name_valid and sink_db_filename_valid
 
         if self.existing_case:
-            # print('checking if source db filename is valid')
             source_db_filename = self.source_db_entry.text()
-            # print("source db filename: ", source_db_filename)
-            source_db_filename_valid = self.filestate.is_valid(source_db_filename, ".db")
+            source_db_filename_valid = self.filestate.is_valid(source_db_filename, SOURCE_DB)
             all_paths_valid = all_paths_valid and source_db_filename_valid
         
         if all_paths_valid:
-            # print("all paths are valid")
             self.filestate.set_source_img_filename(source_img_filename)
             self.filestate.set_sink_dir_name(sink_dir_name)
             self.filestate.set_sink_db_filename(sink_db_filename)
@@ -202,29 +200,41 @@ class FileDialog(QDialog):
             return True
 
         if not source_img_filename_valid:
-            # print("source img filename invalid")
-            display_warning_message(self, "Invalid image file type (must be .npy) or file does not exist.\n")
+            if not self.filestate.source_img_file_exists:
+                display_warning_message(self, "Provided source image file at does not exist.")
+            elif not self.filestate.source_img_file_format_valid:
+                display_warning_message(self, "Provided source image file type is invalid (must be .npy).")
             self.filestate.set_source_img_filename("")
         if not source_db_filename_valid: # only if existing case
-            # print("source db filename invalid")
-            display_warning_message(self, "Invalid source database file type (must be .db) or file does not exist.\n")
+            if not self.source_db_file_exists:
+                display_warning_message(self, "Provided source database file does not exist.")
+            elif not self.filestate.source_db_file_format_valid:
+                display_warning_message(self, "Provided source database file type is invalid (must be .db)")
             self.filestate.set_source_db_filename("")
         if not sink_dir_name_valid:
-            # print("sink dir name invalid")
-            display_warning_message(self, "Invalid sink directory or directory does not exist.\n")
+            if not self.filestate.sink_dir_exists:
+                display_warning_message(self, "Provided sink directory does not exist.")
+            elif not self.sink_dir_format_valid:
+                display_warning_message(self, "Provided sink directory format is invalid.")
             self.filestate.set_sink_dir_name("")
-        if not sink_db_filename_valid: # if the sink db is invalid and it's not because its something like ".db" or " .db"
-            if sink_dir_name_valid and not re.match(r" *.db", sink_db_filename) and display_yes_no_message(self, "Create file at " + sink_db_filename + "?"):
+        if not sink_db_filename_valid: # if the sink db is invalid and it's not because its something like ".db" or " .db" and user agrees to create file
+            if sink_dir_name_valid and not self.filestate.sink_db_file_preexists and self.filestate.sink_db_file_format_valid and display_yes_no_message(self, "Create file at " + sink_db_filename + "?"):
                 # create file with read write permissions
-                sink_db_file = open(sink_db_filename, "w+")
-                sink_db_file.close()
+                ###########################################
+                try:
+                    sink_db_file = open(sink_db_filename, "w+")
+                    sink_db_file.close()
+                except:
+                    display_warning_message("Failed to create provided sink database file.")
+                    return False
+                ###########################################
                 # set sink db filename
                 self.filestate.set_sink_db_filename(sink_db_filename)
                 self.refresh_UI()
                 return True
             else:
                 # print("sink db filename invalid")
-                display_warning_message(self, "Invalid sink database file type (must be .db) or file does not exist. Be sure to specify a name for the sink database.\n")
+                display_warning_message(self, "Be sure to specify a name for the sink database.\n")
                 self.filestate.set_sink_db_filename("")
 
         # print("paths invalid")
@@ -238,7 +248,13 @@ class FileDialog(QDialog):
         # check once more that the paths in the line edit are valid
         valid_paths = self.check_paths()
         if valid_paths:
-            valid_paths = display_yes_no_message(self, "If you chose an existing .db file as a sink, it will be overwritten. If you are initiating a new case, the specified sink .db file will be replaced. Do you wish to proceed?")
+            if self.existing_case:
+                if self.filestate.get_source_db_filename() != self.filestate.get_sink_db_filename():
+                    valid_paths = display_yes_no_message(self, "Sink database is different from source database. Any new annotations you add will be added to the sink database only. Proceed?")
+                else:
+                    valid_paths = display_yes_no_message(self, "Sink database is the same as source database. Source database will be modified. Proceed?")
+            else:
+                valid_paths = display_yes_no_message(self, "Sink database already exists and will be cleared of any table named \'annotations\'. Proceed?")
 
         if valid_paths:
             self.hide()
@@ -259,4 +275,4 @@ class FileDialog(QDialog):
         self.source_img_entry.setText(self.filestate.get_source_img_filename())
         self.sink_dir_entry.setText(self.filestate.get_sink_dir_name())
         self.sink_db_name_entry.setText(self.filestate.get_sink_db_filename())
-        if self.existing_case: self.source_db_entry.setText(self.filestate.get_source_db_filename())    
+        if self.existing_case: self.source_db_entry.setText(self.filestate.get_source_db_filename())
