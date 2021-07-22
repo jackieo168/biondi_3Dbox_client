@@ -99,7 +99,8 @@ class FileDialog(QDialog):
 	def check_line_edits_and_refresh_filestate(self):
 		"""
 		check line edits for modifications and refresh the filestate accordingly.
-		called on clicks to the browse buttons and ok.
+		called on clicks to the browse buttons and ok, before refreshing UI.
+		can be thought of in conjunction with refresh_UI().
 		"""
 		# line edit changes (other places where filestate is updated: browse button clicks, ok click)
 		if self.source_img_entry.isModified():
@@ -228,16 +229,15 @@ class FileDialog(QDialog):
 					sink_db_file.close()
 				except IOError as error:
 					display_warning_message(self, "Failed to create provided sink database file: " + error)
-					return False
 				###########################################
 				# set sink db filename
-				self.filestate.set_sink_db_filename(sink_db_filename)
-				self.refresh_UI()
-				return True
-			else:
-				# print("sink db filename invalid")
+				else:
+					self.filestate.set_sink_db_filename(sink_db_filename)
+					self.refresh_UI()
+					return True
+			elif not self.filestate.sink_db_file_format_valid:
 				display_warning_message(self, "Be sure to specify a name for the sink database.")
-				self.filestate.set_sink_db_filename("")
+			self.filestate.set_sink_db_filename("")
 
 		# print("paths invalid")
 		self.refresh_UI()
@@ -265,9 +265,9 @@ class FileDialog(QDialog):
 													 "Sink database already exists and will be cleared of any table "
 													 "named \'annotations\' before being used. Proceed?")
 
-		if valid_paths:
+		if valid_paths:  # still
 			self.hide()
-			self.app = Application(self.filestate, self.existing_case)
+			self.app = Application(filestate=self.filestate, parent=self, existing_case=self.existing_case)
 			self.app.showMaximized()
 
 	def on_cancel_click(self):

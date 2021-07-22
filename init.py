@@ -65,7 +65,6 @@ class OpeningWindow(QWidget):
 			# self.hide()
 			self.file_dlg = FileDialog(self, False)
 		elif sender.text() == 'Continue on Existing Case':
-			# TODO
 			self.file_dlg = FileDialog(self, True)
 		self.file_dlg.show()
 

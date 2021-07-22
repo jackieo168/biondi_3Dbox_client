@@ -154,5 +154,6 @@ class Database:
 		"""
 		export sink database annotations table to csv at provided destination_path.
 		"""
-		df = pd.read_sql_table('annotations', self.conn)
-		df.to_csv(r'' + destination_path, index=False)
+		df = pd.read_sql_query('SELECT * FROM annotations', self.conn)
+		print(df)
+		df.to_csv(destination_path, index=False)

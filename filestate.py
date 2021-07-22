@@ -1,4 +1,6 @@
 from constants import *
+from pathlib import Path
+import re
 """
 The filestate.
 Contains information on the source img file path, source db file path,
@@ -52,7 +54,7 @@ class FileState:
 			return self.source_db_file_exists and self.source_db_file_format_valid
 		if type == SINK_DB:
 			self.sink_db_file_preexists = exists and is_file
-			self.sink_db_file_format_valid = path.lower().endswith(".db") and not re.match(r'\S* *.db', path)
+			self.sink_db_file_format_valid = path.lower().endswith(".db") and not re.match(r'\S*\/ *.db', path)
 			return self.sink_db_file_preexists and self.sink_db_file_format_valid
 
 		return False

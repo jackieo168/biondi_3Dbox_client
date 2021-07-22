@@ -5,6 +5,7 @@ from boundingbox import BoundingBox
 from database import Database
 import sqlite3
 from messages import *
+from exportfiledialog import ExportFileDialog
 
 """
 Main Application Window:
@@ -24,8 +25,9 @@ DOES NOT SUPPORT CONCURRENT RUNS (i.e. different annotation sessions). YOU CAN O
 
 
 class Application(QMainWindow):
-	def __init__(self, filestate, existing_case=False):
-		super().__init__()
+	def __init__(self, filestate, parent=None, existing_case=False):
+		super().__init__(parent)
+		self.parent = parent
 		self.filestate = filestate
 
 		# connect to source db if existing case
@@ -33,13 +35,18 @@ class Application(QMainWindow):
 		if self.existing_case:
 		    self.est_source_db_connection()
 
+		# determine current bbox_num
 		self.bbox_num = 0
 		if self.existing_case:
 		    self.bbox_num = self.read_next_bbox_num_from_source_db()
 
+		# latest clicked bbox
 		self.latest_clicked_bbox = None
+
+		# side view orientation mode
 		self.side_view_mode = 0  # 1 or 2 depending on orientation, 0 if selector not clicked
 
+		# main layout
 		self.layout = QGridLayout()
 
 		# text
@@ -55,6 +62,7 @@ class Application(QMainWindow):
 		self.central_widget = QWidget()
 		self.status_bar = self.statusBar()
 		self.change_side_view_btn = QPushButton('Change Side View')
+		self.export_btn = QPushButton('Export')
 
 		# IMAGE ARRAY
 		self.input_array = np.load(self.filestate.get_source_img_filename())
@@ -74,12 +82,13 @@ class Application(QMainWindow):
 		# initialize UI
 		self.init_UI()
 
-		# initialize database
+		# initialize database. source db is read in init_UI().
 		try:
 			self.sink_db = Database(self.filestate.get_sink_db_filename())
 			if not self.existing_case:
 				# clear contents of any preexisting annotations table
 				self.sink_db = Database(self.filestate.get_sink_db_filename(), True)
+			self.status_bar.showMessage("sink db connection successfully established.")
 		except sqlite3.Error as error:
 			self.handle_sink_db_sqlite_error(error)
 
@@ -115,6 +124,7 @@ class Application(QMainWindow):
 		self.layout.addWidget(self.top_scan_img_view, 1, 2, 1, 1)
 		self.layout.addWidget(self.side_img_view, 0, 3, 2, 1)
 		self.layout.addWidget(self.change_side_view_btn, 2, 3)
+		self.layout.addWidget(self.export_btn, 3, 3)
 
 		self.central_widget.setLayout(self.layout)
 
@@ -132,6 +142,7 @@ class Application(QMainWindow):
 
 		# set up button events
 		self.change_side_view_btn.clicked.connect(self.change_side_view_btn_clicked)
+		self.export_btn.clicked.connect(self.on_export_btn_clicked)
 
 		# load in bboxes and vbounds if existing case
 		if self.existing_case:
@@ -218,7 +229,6 @@ class Application(QMainWindow):
 				bbox.add_associated_v_bound(z_start_bound)
 				bbox.add_associated_v_bound(z_end_bound)
 				self.add_bbox_to_main_view(bbox)
-				self.add_or_update_bbox_dict(bbox)
 			self.status_bar.showMessage("annotations successfully loaded from source db")
 			self.source_db_cur.close()
 			self.source_db_conn.close()
@@ -251,6 +261,7 @@ class Application(QMainWindow):
 		add or update sink db with current information on the latest interacted-with annotation.
 		called when bbox is added(drawn), dragged, changed in size and when vbounds are added, dragged.
 		"""
+
 		self.latest_clicked_bbox.get_array_slice()
 		try:
 			annotation = self.latest_clicked_bbox.get_parameters()
@@ -288,7 +299,7 @@ class Application(QMainWindow):
 		self.clear_top_and_side_views()
 		if bboxes_at_cursor:  # SHOW THE DIFFERENT VIEWS FOR THE SELECTED DATA
 			self.latest_clicked_bbox = bboxes_at_cursor[0]  # take top-most bbox
-			self.status_bar.showMessage('bbox ' + self.latest_clicked_bbox.get_bbox_num() + ' clicked')
+			self.status_bar.showMessage('bbox ' + str(self.latest_clicked_bbox.get_bbox_num()) + ' clicked')
 			self.refresh_top_and_side_views()
 		else:  # DRAW THE BBOX
 			self.status_bar.showMessage('drawing new bbox')
@@ -308,8 +319,17 @@ class Application(QMainWindow):
 		adds bbox to main image view and sets up its signals.
 		"""
 		self.img_view.addItem(bbox)
-		bbox.sigRegionChangeFinished.connect(self.add_or_update_sink_database)
+		bbox.sigRegionChangeFinished.connect(self.on_bbox_region_change_finished)
 		bbox.sigRemoveRequested.connect(self.remove_item_from_main_img_plot)
+
+	def on_bbox_region_change_finished(self):
+		"""
+		called when a bbox's region is changed.
+		fixes bug where changing a bbox's region doesn't update self.latest_clicked_box
+		"""
+		self.latest_clicked_bbox = self.sender()
+		self.status_bar.showMessage("Changing bounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
+		self.add_or_update_sink_database()
 
 	def refresh_top_and_side_views(self):
 		"""
@@ -392,11 +412,11 @@ class Application(QMainWindow):
 		item from the main image plot.
 		"""
 		self.status_bar.showMessage("removed bbox")
-		item = self.sender()  # bbox
-		self.img_plot.removeItem(item)
+		bbox = self.sender()  # bbox
+		self.latest_clicked_bbox = bbox # update latest clicked bbox even though it's removed
+		self.img_plot.removeItem(bbox)
 		self.clear_top_and_side_views()
-		self.delete_from_sink_database(item)
-		self.delete_from_bbox_dict(item)
+		self.delete_from_sink_database(bbox)
 
 	def change_side_view_btn_clicked(self):
 		"""
@@ -409,6 +429,13 @@ class Application(QMainWindow):
 		elif self.side_view_mode == 2:
 			self.side_view_mode = 1
 			self.side_img_view.setImage(self.side_view_1)
+
+	def on_export_btn_clicked(self):
+		"""
+		button to export annotations as .csv.
+		"""
+		export_file_dlg = ExportFileDialog(self.sink_db, self)
+		export_file_dlg.show()
 
 	def closeEvent(self, event):
 		"""
