@@ -387,24 +387,37 @@ class Application(QMainWindow):
 		self.side_img_view_item = self.side_img_view.getImageItem()
 		mouse_pos = event.scenePos()
 		img_pos = self.side_img_view_item.mapFromScene(mouse_pos)
-		y = img_pos.y()
+		y = round(img_pos.y())
 		self.add_v_bound(y)
 
 	def add_v_bound(self, y):
 		"""
 		adds vertical (z-axis) bounding lines to side_img_view
+		y (position) is rounded.
 		"""
 		self.status_bar.showMessage('')
 		num_v_bounds = self.latest_clicked_bbox.get_num_associated_v_bounds()
 		if num_v_bounds < 2:
 			# add a vertical bound
-			self.status_bar.showMessage('adding vertical bounds')
+			self.status_bar.showMessage('adding vbounds for bbox ' + str(self.latest_clicked_bbox.get_bbox_num()))
 			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
 			self.latest_clicked_bbox.add_associated_v_bound(v_bound)
 			self.side_img_view.addItem(v_bound)
 			self.add_or_update_sink_database()
-			v_bound.sigPositionChangeFinished.connect(self.add_or_update_sink_database)
+			v_bound.sigPositionChangeFinished.connect(self.on_vbound_position_changed_finished)
 		# else, do nothing
+
+	def on_vbound_position_changed_finished(self):
+		"""
+		when vbound position is changed via dragging.
+		fixes bug where an adjusted vbound doesn't have its value rounded.
+		"""
+		# set the bound's value to the rounded number
+		v_bound= self.sender()
+		v_bound_value = v_bound.value()
+		v_bound.setValue(round(v_bound_value))
+		self.status_bar.showMessage("Adjusting vbounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
+		self.add_or_update_sink_database()
 
 	def remove_item_from_main_img_plot(self):
 		"""

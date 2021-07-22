@@ -260,7 +260,7 @@ class FileDialog(QDialog):
 					valid_paths = display_yes_no_message(self,
 														 "Sink database is the same as source database. Source "
 														 "database will be modified. Proceed?")
-			else:
+			elif self.filestate.sink_db_file_preexists:
 				valid_paths = display_yes_no_message(self,
 													 "Sink database already exists and will be cleared of any table "
 													 "named \'annotations\' before being used. Proceed?")

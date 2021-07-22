@@ -137,9 +137,11 @@ class ExportFileDialog(QDialog):
                 except IOError as error:
                     display_warning_message(self, "Failed to create provided .csv file: " + export_csv_path)
                 else:
+                    self.export_csv_dir = export_csv_dir
                     self.export_csv_path = export_csv_path
                     self.refresh_UI()
-                    return
+                    self.sink_db.export_as_csv(self.export_csv_path)
+                    self.close()
             elif not csv_format_valid:
                 display_warning_message(self, "Be sure to specify a name for the .csv file.")
             self.export_csv_path = ""
