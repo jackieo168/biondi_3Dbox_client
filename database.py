@@ -83,6 +83,10 @@ class Database:
 		else:
 			self.conn.commit()
 
+	#######################
+	# DATABASE OPERATIONS #
+	#######################
+
 	def add_or_update_annotation(self, annotation):
 		"""
 		adds or updates annotations table with annotation.
@@ -149,6 +153,10 @@ class Database:
 			raise error
 		else:
 			self.conn.commit()
+
+	######################
+	# EXPORT ANNOTATIONS #
+	######################
 
 	def export_as_csv(self, destination_path):
 		"""

@@ -70,6 +70,10 @@ class ExportFileDialog(QDialog):
         self.setGeometry(self.x, self.y, self.width, self.height)
         self.setWindowTitle(self.title)
 
+    #######################
+    # BROWSE BUTTON CLICK #
+    #######################
+
     def on_export_csv_path_browse_btn_click(self):
         """
         when browse button clicked
@@ -87,6 +91,10 @@ class ExportFileDialog(QDialog):
         if export_dir:
             self.export_csv_dir = export_dir
             self.refresh_UI()
+
+    ##########################
+    # OK/CANCEL BUTTON CLICK #
+    ##########################
 
     def on_ok_click(self):
         """
@@ -148,15 +156,19 @@ class ExportFileDialog(QDialog):
 
         self.refresh_UI()
 
+    def on_cancel_click(self):
+        """
+        when cancel is clicked.
+        """
+        self.close()
+
+    ##############
+    # REFRESH UI #
+    ##############
+
     def refresh_UI(self):
         """
         refresh the line edits.
         """
         self.export_csv_dir_entry.setText(self.export_csv_dir)
         self.export_csv_name_entry.setText(self.export_csv_path)
-
-    def on_cancel_click(self):
-        """
-        when cancel is clicked.
-        """
-        self.close()

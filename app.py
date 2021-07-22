@@ -262,7 +262,7 @@ class Application(QMainWindow):
 		called when bbox is added(drawn), dragged, changed in size and when vbounds are added, dragged.
 		"""
 
-		self.latest_clicked_bbox.get_array_slice()
+		self.latest_clicked_bbox.update_bbox_vertices()
 		try:
 			annotation = self.latest_clicked_bbox.get_parameters()
 			self.sink_db.add_or_update_annotation(annotation)
@@ -281,9 +281,10 @@ class Application(QMainWindow):
 		except sqlite3.Error as error:
 			self.handle_sink_db_sqlite_error(error)
 
-	################
-	# MOUSE EVENTS #
-	################
+	#############
+	# MAIN VIEW #
+	#############
+
 	def main_view_mouse_clicked(self, event):
 		"""
 		For adding bboxes or changing existing bboxes in the main image view.
@@ -331,12 +332,28 @@ class Application(QMainWindow):
 		self.status_bar.showMessage("Changing bounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
 		self.add_or_update_sink_database()
 
+	def remove_item_from_main_img_plot(self):
+		"""
+		When the appropriate right click context menu item is selected, removes the
+		item from the main image plot.
+		"""
+		self.status_bar.showMessage("removed bbox")
+		bbox = self.sender()  # bbox
+		self.latest_clicked_bbox = bbox # update latest clicked bbox even though it's removed
+		self.img_plot.removeItem(bbox)
+		self.clear_top_and_side_views()
+		self.delete_from_sink_database(bbox)
+
+	######################
+	# TOP AND SIDE VIEWS #
+	######################
+
 	def refresh_top_and_side_views(self):
 		"""
 		update top and side views with respective views of selected data.
 		"""
 		# get the bbox's bounds
-		self.latest_clicked_bbox.get_array_slice()
+		self.latest_clicked_bbox.update_bbox_vertices()
 		bbox_id, row_start, row_end, col_start, col_end, z_start, z_end = self.latest_clicked_bbox.get_parameters()
 
 		# set the images in each of the views (top_img_view, top_scan_img_view, side_view_1, side_view_2)
@@ -380,6 +397,10 @@ class Application(QMainWindow):
 		for v_bound in self.latest_clicked_bbox.get_associated_v_bounds():
 			self.side_img_view.removeItem(v_bound)
 
+	#############
+	# SIDE VIEW #
+	#############
+
 	def side_view_mouse_clicked(self, event):
 		"""
 		called when mouse clicks on side_img_view
@@ -388,9 +409,9 @@ class Application(QMainWindow):
 		mouse_pos = event.scenePos()
 		img_pos = self.side_img_view_item.mapFromScene(mouse_pos)
 		y = round(img_pos.y())
-		self.add_v_bound(y)
+		self.draw_new_v_bound(y)
 
-	def add_v_bound(self, y):
+	def draw_new_v_bound(self, y):
 		"""
 		adds vertical (z-axis) bounding lines to side_img_view
 		y (position) is rounded.
@@ -402,10 +423,16 @@ class Application(QMainWindow):
 			self.status_bar.showMessage('adding vbounds for bbox ' + str(self.latest_clicked_bbox.get_bbox_num()))
 			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
 			self.latest_clicked_bbox.add_associated_v_bound(v_bound)
-			self.side_img_view.addItem(v_bound)
 			self.add_or_update_sink_database()
-			v_bound.sigPositionChangeFinished.connect(self.on_vbound_position_changed_finished)
+			self.add_v_bound_to_side_view(v_bound)
 		# else, do nothing
+
+	def add_v_bound_to_side_view(self, v_bound):
+		"""
+		Adds vbound to side view and sets up its signals.
+		"""
+		self.side_img_view.addItem(v_bound)
+		v_bound.sigPositionChangeFinished.connect(self.on_vbound_position_changed_finished)
 
 	def on_vbound_position_changed_finished(self):
 		"""
@@ -418,18 +445,6 @@ class Application(QMainWindow):
 		v_bound.setValue(round(v_bound_value))
 		self.status_bar.showMessage("Adjusting vbounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
 		self.add_or_update_sink_database()
-
-	def remove_item_from_main_img_plot(self):
-		"""
-		When the appropriate right click context menu item is selected, removes the
-		item from the main image plot.
-		"""
-		self.status_bar.showMessage("removed bbox")
-		bbox = self.sender()  # bbox
-		self.latest_clicked_bbox = bbox # update latest clicked bbox even though it's removed
-		self.img_plot.removeItem(bbox)
-		self.clear_top_and_side_views()
-		self.delete_from_sink_database(bbox)
 
 	def change_side_view_btn_clicked(self):
 		"""
@@ -449,6 +464,10 @@ class Application(QMainWindow):
 		"""
 		export_file_dlg = ExportFileDialog(self.sink_db, self)
 		export_file_dlg.show()
+
+	#########
+	# CLOSE #
+	#########
 
 	def closeEvent(self, event):
 		"""

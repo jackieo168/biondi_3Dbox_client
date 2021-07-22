@@ -110,6 +110,10 @@ class FileDialog(QDialog):
 		if self.sink_dir_entry.isModified():
 			self.filestate.set_sink_dir_name(self.sink_dir_entry.text().replace("\\", "/"))
 
+	#################
+	# BUTTON EVENTS #
+	#################
+
 	def on_sink_dir_browse_btn_click(self):
 		"""
 		when sink dir browse button is clicked.
@@ -163,6 +167,10 @@ class FileDialog(QDialog):
 			self.filestate.set_source_img_filename(source_img_filename)
 			self.check_line_edits_and_refresh_filestate()
 			self.refresh_UI()
+
+	############
+	# OK CLICK #
+	############
 
 	def check_paths(self):
 		"""
@@ -270,12 +278,20 @@ class FileDialog(QDialog):
 			self.app = Application(filestate=self.filestate, parent=self, existing_case=self.existing_case)
 			self.app.showMaximized()
 
+	################
+	# CANCEL CLICK #
+	################
+
 	def on_cancel_click(self):
 		"""
 		when cancel button is pressed, close dialog.
 		"""
 		# self.parent.show()
 		self.close()
+
+	##############
+	# REFRESH UI #
+	##############
 
 	def refresh_UI(self):
 		"""

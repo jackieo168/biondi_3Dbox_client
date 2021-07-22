@@ -1,14 +1,11 @@
-import sys
-import numpy as np
-from PyQt5.QtWidgets import * 
+from PyQt5.QtWidgets import *
 from filedialog import FileDialog
 
-# window pops up with "Continue on Existing Case", "Initiate a New Case"
-# "Initiate New Case" --> .npy path, save folder (or default)
-# "Continue on Existing Case" --> opens last saved session
-# first show max intense flourescence z projection
-# users annotate these first
-# then they specify the rest of the box
+"""
+Opening window.
+Has 2 buttons: Initiate New Case, Continue Existing Case.
+"""
+
 class OpeningWindow(QWidget):
 	def __init__(self):
 		super().__init__()
@@ -55,6 +52,10 @@ class OpeningWindow(QWidget):
 		# self.setCentralWidget(self.central_widget)
 		self.setGeometry(self.x, self.y, self.width, self.height)
 		self.setWindowTitle(self.title)
+
+	#########################################################
+	# INITIATE NEW CASE/CONTINUE EXISTING CASE BUTTON CLICK #
+	#########################################################
 
 	def button_clicked(self):
 		"""
