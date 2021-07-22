@@ -1,7 +1,10 @@
-# the Model
-from pathlib import Path
 from constants import *
-import re
+"""
+The filestate.
+Contains information on the source img file path, source db file path,
+sink db file path, and sink dir path of the currently running application.
+"""
+
 
 class FileState:
 	def __init__(self, existing_case=False):
@@ -25,10 +28,7 @@ class FileState:
 
 	def is_valid(self, path, type=None):
 		"""
-		returns True if the path refers to an existing file with extension
-		or existing directory.
-
-		in the case of the sink db, if it doesn't exist already but the 
+		checks that the path specified is valid and sets appropriate filestate variables.
 		"""
 		path_obj = Path(path)
 		exists = path_obj.exists()
@@ -37,7 +37,7 @@ class FileState:
 
 		# check if sink dir valid. Should call is_valid on sink dir before calling on sink db.
 		if type == SINK_DIR:
-			self.sink_dir_exists = exists # could be a file
+			self.sink_dir_exists = exists  # could be a file
 			self.sink_dir_format_valid = is_dir
 			return self.sink_dir_exists and self.sink_dir_format_valid
 
@@ -56,6 +56,10 @@ class FileState:
 			return self.sink_db_file_preexists and self.sink_db_file_format_valid
 
 		return False
+
+	###################
+	# GETTERS/SETTERS #
+	###################
 
 	def set_sink_db_filename(self, sink_db_filename):
 		self.sink_db_filename = sink_db_filename
