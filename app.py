@@ -101,21 +101,17 @@ class Application(QMainWindow):
 		pg.setConfigOptions(imageAxisOrder='row-major')
 
 		# set up image views
-		self.img_plot.enableAutoScale()
 		self.img_plot.setTitle("Main Image View")
 		self.img_view = pg.ImageView(name="Main Image View",
 									 view=self.img_plot)  # create image view widget with view as the image plot widget
 		self.img_view.setImage(self.input_array_zmax)  # set its image
 
-		self.top_view_plot.enableAutoScale()
 		self.top_view_plot.setTitle("Top Image View")
 		self.top_img_view = pg.ImageView(name="Top Image View", view=self.top_view_plot)
 
-		self.top_scan_view_plot.enableAutoScale()
 		self.top_scan_view_plot.setTitle("Top Scan Image View")
 		self.top_scan_img_view = pg.ImageView(name="Top Scan Image View", view=self.top_scan_view_plot)
 
-		self.side_view_plot.enableAutoScale()
 		self.side_view_plot.setTitle("Side Image View")
 		self.side_img_view = pg.ImageView(name="Side Image View", view=self.side_view_plot)
 

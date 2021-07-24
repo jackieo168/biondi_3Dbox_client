@@ -74,8 +74,9 @@ class OpeningWindow(QWidget):
 if __name__=="__main__":
 	# construct app
 	appctxt = ApplicationContext()
-	app = QApplication([])
-	app.setStyle('Fusion')
+	appctxt.app.setStyle('Fusion')
+	# app = QApplication([])
+	# app.setStyle('Fusion')
 
 	# construct and show opening window
 	o = OpeningWindow()
@@ -83,5 +84,6 @@ if __name__=="__main__":
 
 	# run
 	appctxt.app.exec()
+	# app.exec()
 
 
