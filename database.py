@@ -163,5 +163,5 @@ class Database:
 		export sink database annotations table to csv at provided destination_path.
 		"""
 		df = pd.read_sql_query('SELECT * FROM annotations', self.conn)
-		print(df)
+		# print(df)
 		df.to_csv(destination_path, index=False)

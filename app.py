@@ -40,8 +40,9 @@ class Application(QMainWindow):
 		if self.existing_case:
 		    self.bbox_num = self.read_next_bbox_num_from_source_db()
 
-		# latest clicked bbox
+		# latest clicked bbox and prev clicked bbox
 		self.latest_clicked_bbox = None
+		self.prev_clicked_bbox = None
 
 		# side view orientation mode
 		self.side_view_mode = 0  # 1 or 2 depending on orientation, 0 if selector not clicked
@@ -119,12 +120,12 @@ class Application(QMainWindow):
 		self.side_img_view = pg.ImageView(name="Side Image View", view=self.side_view_plot)
 
 		# add image views to layout
-		self.layout.addWidget(self.img_view, 0, 0, 2, 2)
-		self.layout.addWidget(self.top_img_view, 0, 2, 1, 1)
-		self.layout.addWidget(self.top_scan_img_view, 1, 2, 1, 1)
-		self.layout.addWidget(self.side_img_view, 0, 3, 2, 1)
-		self.layout.addWidget(self.change_side_view_btn, 2, 3)
-		self.layout.addWidget(self.export_btn, 3, 3)
+		self.layout.addWidget(self.export_btn, 0, 3)
+		self.layout.addWidget(self.img_view, 1, 0, 2, 2)
+		self.layout.addWidget(self.top_img_view, 1, 2, 1, 1)
+		self.layout.addWidget(self.top_scan_img_view, 2, 2, 1, 1)
+		self.layout.addWidget(self.side_img_view, 1, 3, 2, 1)
+		self.layout.addWidget(self.change_side_view_btn, 3, 3)
 
 		self.central_widget.setLayout(self.layout)
 
@@ -221,6 +222,7 @@ class Application(QMainWindow):
 				# BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
 				bbox_id, row_start, row_end, col_start, col_end, z_start, z_end = row
 				bbox = BoundingBox(bbox_id, self.input_array_zmax, self.img_view, col_start, row_start)
+				bbox.setPen(width=1, color='y')
 				bbox_row_size = row_end - row_start
 				bbox_col_size = col_end - col_start
 				bbox.setSize([bbox_col_size, bbox_row_size])
@@ -299,7 +301,7 @@ class Application(QMainWindow):
 		bboxes_at_cursor = [item for item in items if isinstance(item, BoundingBox)]
 		self.clear_top_and_side_views()
 		if bboxes_at_cursor:  # SHOW THE DIFFERENT VIEWS FOR THE SELECTED DATA
-			self.latest_clicked_bbox = bboxes_at_cursor[0]  # take top-most bbox
+			self.update_latest_clicked_bbox(bboxes_at_cursor[0])  # take top-most bbox
 			self.status_bar.showMessage('bbox ' + str(self.latest_clicked_bbox.get_bbox_num()) + ' clicked')
 			self.refresh_top_and_side_views()
 		else:  # DRAW THE BBOX
@@ -311,7 +313,7 @@ class Application(QMainWindow):
 		construct and add a new bbox at specified x, y coordinates in main image view.
 		"""
 		self.bbox_num += 1
-		self.latest_clicked_bbox = BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x, y)
+		self.update_latest_clicked_bbox(BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x, y))
 		self.add_or_update_sink_database()
 		self.add_bbox_to_main_view(self.latest_clicked_bbox)
 
@@ -328,7 +330,7 @@ class Application(QMainWindow):
 		called when a bbox's region is changed.
 		fixes bug where changing a bbox's region doesn't update self.latest_clicked_box
 		"""
-		self.latest_clicked_bbox = self.sender()
+		self.update_latest_clicked_bbox(self.sender())
 		self.status_bar.showMessage("Changing bounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
 		self.add_or_update_sink_database()
 
@@ -339,10 +341,24 @@ class Application(QMainWindow):
 		"""
 		self.status_bar.showMessage("removed bbox")
 		bbox = self.sender()  # bbox
-		self.latest_clicked_bbox = bbox # update latest clicked bbox even though it's removed
+		self.update_latest_clicked_bbox(bbox)  # update latest clicked bbox even though it's removed
 		self.img_plot.removeItem(bbox)
 		self.clear_top_and_side_views()
 		self.delete_from_sink_database(bbox)
+
+	def update_latest_clicked_bbox(self, bbox):
+		"""
+		Sets the prev clicked bbox to the prev bbox that was interacted with.
+		Changes its style to be 'unselected'.
+		Sets the latest clicked bbox to the currently selected/modified bbox.
+		Sets its style to be 'selected'.
+		"""
+		if self.latest_clicked_bbox:  # can be deleted
+			self.latest_clicked_bbox.setPen(width=1, color='y')
+		self.prev_clicked_bbox = self.latest_clicked_bbox
+		self.latest_clicked_bbox = bbox
+		self.latest_clicked_bbox.setPen(width=3, color='g')
+
 
 	######################
 	# TOP AND SIDE VIEWS #
@@ -479,6 +495,6 @@ class Application(QMainWindow):
 		if reply == QMessageBox.Yes:
 			event.accept()
 			self.sink_db.save_and_close()
-			print('Window closed')
+			# print('Window closed')
 		else:
 			event.ignore()

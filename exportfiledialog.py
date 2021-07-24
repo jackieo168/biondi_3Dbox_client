@@ -127,8 +127,8 @@ class ExportFileDialog(QDialog):
             if csv_exists:
                 valid = display_yes_no_message(self, "Provided .csv file already exists. Replace?")
         if valid:  # still
-            self.sink_db.export_as_csv(self.export_csv_path)
-            self.close()
+            if self.export_to_csv(self.export_csv_path):
+                self.close()
 
         if not dir_valid:
             if not dir_exists:
@@ -148,13 +148,26 @@ class ExportFileDialog(QDialog):
                     self.export_csv_dir = export_csv_dir
                     self.export_csv_path = export_csv_path
                     self.refresh_UI()
-                    self.sink_db.export_as_csv(self.export_csv_path)
-                    self.close()
+                    if self.export_to_csv(self.export_csv_path):
+                        self.close()
             elif not csv_format_valid:
                 display_warning_message(self, "Be sure to specify a name for the .csv file.")
             self.export_csv_path = ""
 
         self.refresh_UI()
+
+    def export_to_csv(self, path):
+        """
+        helper method to export path to .csv.
+        returns True if export happens without error.
+        returns False otherwise.
+        """
+        try:
+            self.sink_db.export_as_csv(path)
+            return True
+        except IOError as error:
+            display_warning_message(self, "Provided .csv file may be open in another application. Be sure to close it.")
+            return False
 
     def on_cancel_click(self):
         """

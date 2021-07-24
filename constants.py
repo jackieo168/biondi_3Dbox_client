@@ -1,3 +1,4 @@
+import pyqtgraph as pg
 """
 Constants
 """
