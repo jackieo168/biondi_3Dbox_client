@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import *
 from filedialog import FileDialog
+from fbs_runtime.application_context.PyQt5 import ApplicationContext
 
 """
 Opening window.
@@ -11,8 +12,8 @@ class OpeningWindow(QWidget):
 		super().__init__()
 
 		# text
-		self.title = "3D Biondi Body Client"
-		self.description = """<h1>3D Biondi Body Client</h1>
+		self.title = "3D Biondi Body Annotation Client"
+		self.description = """<h1>3D Biondi Body Annotation Client</h1>
 							<body>Continue on Existing Case: Continue work on a previous case. </body> 
 							<body> Initiate New Case: Create a new case </body>"""
 
@@ -72,6 +73,7 @@ class OpeningWindow(QWidget):
 
 if __name__=="__main__":
 	# construct app
+	appctxt = ApplicationContext()
 	app = QApplication([])
 	app.setStyle('Fusion')
 
@@ -80,6 +82,6 @@ if __name__=="__main__":
 	o.show()
 
 	# run
-	app.exec()
+	appctxt.app.exec()
 
 
