@@ -42,6 +42,8 @@ Adjust the bbox by dragging its handles. You can zoom in/out by scrolling and pa
 Click on the added bbox to view the `Top`, `Top Scan`, and `Side` views.  
 Click on the `Side Image View` to add vbounds (vertical bounds).
 ![Adding an annotation](videos/adding_annotation_Trim.gif)  
+Adjust vertical bounds by dragging.  
+![Adding an annotation](videos/adjusting_vertical_bounds_Trim.gif)
 
 ### Delete annotation:
 Right click on the desired bbox. Click `Remove ROI`.
