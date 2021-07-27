@@ -38,12 +38,16 @@ Upon clicking `OK`, the main annotation window will open, with existing annotati
 
 ### Add annotation:
 Click on the `Main Image View` to add a bbox (bounding box).  
-Adjust the bbox by dragging its handles. You can zoom in/out by scrolling and pan by clicking and dragging.   
-Click on the added bbox to view the `Top`, `Top Scan`, and `Side` views.  
+Adjust the bbox by dragging its handles. You can zoom in/out by scrolling and pan by dragging.   
+View the selected region through the `Top`, `Top Scan`, and `Side` views.  
 Click on the `Side Image View` to add vbounds (vertical bounds).
 ![Adding an annotation](videos/adding_annotation_Trim.gif)  
 Adjust vertical bounds by dragging.  
 ![Adding an annotation](videos/adjusting_vertical_bounds_Trim.gif)
+
+### View annotation:
+To view an annotation, simply click on the desired bbox.  
+![View an annotation](videos/viewing_annotation_Trim.gif)
 
 ### Delete annotation:
 Right click on the desired bbox. Click `Remove ROI`.
