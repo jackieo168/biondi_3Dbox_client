@@ -15,23 +15,28 @@ class BoundingBox(pg.RectROI):
         init_y = y
         self.num_associated_v_bounds = 0
         self.associated_v_bounds = []
-        super().__init__([init_x, init_y], size=[20, 20], rotatable=False, resizable=True, removable=True)
 
-        # ## handles scaling horizontally around center
+        # init rect roi
+        super().__init__([init_x, init_y], size=[20, 20],
+                         rotatable=False, resizable=True, removable=True)
+        self.hoverPen = pg.mkPen(width=3, color='y')
+        self.handleHoverPen = pg.mkPen(width=3, color='y')
+
+        # handles scaling horizontally around center
         self.addScaleHandle([1, 0.5], [0, 0.5])  # append the box with dragable handles
         self.addScaleHandle([0, 0.5], [1, 0.5])  # for nice resizing purposes
 
-        ## handles scaling vertically from opposite edge
+        # handles scaling vertically from opposite edge
         self.addScaleHandle([0.5, 0], [0.5, 1])
         self.addScaleHandle([0.5, 1], [0.5, 0])
 
-        ## handles scaling both vertically and horizontally
+        # handles scaling both vertically and horizontally
         self.addScaleHandle([0, 0], [1, 1])
         self.addScaleHandle([0, 1], [1, 0])
         self.addScaleHandle([1, 0], [0, 1])
         self.addScaleHandle([1, 1], [0, 0])
 
-    def update_bbox_vertices(self):
+    def refresh_bbox_vertex_info(self):
         self.selected_data_zproj_slice = self.getArraySlice(self.img, self.img_view_item, returnSlice=True)
         selected_data_zproj_slice_obj = self.selected_data_zproj_slice[0]
         selected_data_zproj_slice_obj_0 = selected_data_zproj_slice_obj[0]

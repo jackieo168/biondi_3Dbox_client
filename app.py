@@ -240,6 +240,8 @@ class Application(QMainWindow):
 		v_bound = None
 		if y != 'NULL':
 			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
+			v_bound.setPen(width=3, color='g')
+			v_bound.setHoverPen(width=3, color='y')
 		return v_bound
 
 	###################
@@ -260,9 +262,9 @@ class Application(QMainWindow):
 		called when bbox is added(drawn), dragged, changed in size and when vbounds are added, dragged.
 		"""
 
-		self.latest_clicked_bbox.update_bbox_vertices()
+		self.latest_clicked_bbox.refresh_bbox_vertex_info()
+		annotation = self.latest_clicked_bbox.get_parameters()
 		try:
-			annotation = self.latest_clicked_bbox.get_parameters()
 			self.sink_db.add_or_update_annotation(annotation)
 		except sqlite3.Error as error:
 			self.handle_sink_db_sqlite_error(error)
@@ -272,6 +274,7 @@ class Application(QMainWindow):
 		deletes bbox from sink db.
 		called when bbox is deleted.
 		"""
+		bbox.refresh_bbox_vertex_info()
 		annotation = bbox.get_parameters()
 		bbox_id = annotation[0]
 		try:
@@ -299,10 +302,10 @@ class Application(QMainWindow):
 		if bboxes_at_cursor:  # SHOW THE DIFFERENT VIEWS FOR THE SELECTED DATA
 			self.update_latest_clicked_bbox(bboxes_at_cursor[0])  # take top-most bbox
 			self.status_bar.showMessage('bbox ' + str(self.latest_clicked_bbox.get_bbox_num()) + ' clicked')
-			self.refresh_top_and_side_views()
 		else:  # DRAW THE BBOX
 			self.status_bar.showMessage('drawing new bbox')
 			self.draw_new_bbox(x, y)
+		self.refresh_top_and_side_views()
 
 	def draw_new_bbox(self, x, y):
 		"""
@@ -329,6 +332,7 @@ class Application(QMainWindow):
 		self.update_latest_clicked_bbox(self.sender())
 		self.status_bar.showMessage("Changing bounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
 		self.add_or_update_sink_database()
+		self.refresh_top_and_side_views()
 
 	def remove_item_from_main_img_plot(self):
 		"""
@@ -365,7 +369,7 @@ class Application(QMainWindow):
 		update top and side views with respective views of selected data.
 		"""
 		# get the bbox's bounds
-		self.latest_clicked_bbox.update_bbox_vertices()
+		self.latest_clicked_bbox.refresh_bbox_vertex_info()
 		bbox_id, row_start, row_end, col_start, col_end, z_start, z_end = self.latest_clicked_bbox.get_parameters()
 
 		# set the images in each of the views (top_img_view, top_scan_img_view, side_view_1, side_view_2)
@@ -434,6 +438,8 @@ class Application(QMainWindow):
 			# add a vertical bound
 			self.status_bar.showMessage('adding vbounds for bbox ' + str(self.latest_clicked_bbox.get_bbox_num()))
 			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
+			v_bound.setPen(width=3, color='g')
+			v_bound.setHoverPen(width=3, color='y')
 			self.latest_clicked_bbox.add_associated_v_bound(v_bound)
 			self.add_or_update_sink_database()
 			self.add_v_bound_to_side_view(v_bound)
@@ -452,7 +458,7 @@ class Application(QMainWindow):
 		fixes bug where an adjusted vbound doesn't have its value rounded.
 		"""
 		# set the bound's value to the rounded number
-		v_bound= self.sender()
+		v_bound = self.sender()
 		v_bound_value = v_bound.value()
 		v_bound.setValue(round(v_bound_value))
 		self.status_bar.showMessage("Adjusting vbounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
