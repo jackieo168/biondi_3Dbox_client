@@ -19,11 +19,12 @@ class BoundingBox(pg.RectROI):
         # init rect roi
         super().__init__([init_x, init_y], size=[20, 20],
                          rotatable=False, resizable=True, removable=True)
+        self.setPen(width=1, color='y')
         self.hoverPen = pg.mkPen(width=3, color='y')
         self.handleHoverPen = pg.mkPen(width=3, color='y')
 
         # handles scaling horizontally around center
-        self.addScaleHandle([1, 0.5], [0, 0.5])  # append the box with dragable handles
+        self.addScaleHandle([1, 0.5], [0, 0.5])  # append the box with draggable handles
         self.addScaleHandle([0, 0.5], [1, 0.5])  # for nice resizing purposes
 
         # handles scaling vertically from opposite edge
@@ -71,8 +72,11 @@ class BoundingBox(pg.RectROI):
         bbox_id, row_start, row_end, col_start, col_end, z_start, z_end of annotation
         """
         z_start, z_end = 'NULL', 'NULL'
-        if self.num_associated_v_bounds > 0:
+        if self.num_associated_v_bounds == 1:
             z_start = self.associated_v_bounds[0].value()
         if self.num_associated_v_bounds == 2:
-            z_end = self.associated_v_bounds[1].value()
-        return (self.bbox_num, self.row_start, self.row_end, self.col_start, self.col_end, z_start, z_end)
+            v_bound_val_0 = self.associated_v_bounds[0].value()
+            v_bound_val_1 = self.associated_v_bounds[1].value()
+            z_start = min(v_bound_val_0, v_bound_val_1)
+            z_end = max(v_bound_val_0, v_bound_val_1)
+        return self.bbox_num, self.row_start, self.row_end, self.col_start, self.col_end, z_start, z_end

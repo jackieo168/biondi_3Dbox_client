@@ -87,59 +87,28 @@ class Database:
 	# DATABASE OPERATIONS #
 	#######################
 
-	def add_or_update_annotation(self, annotation):
+	def upsert_annotation(self, annotation):
 		"""
 		adds or updates annotations table with annotation.
 		"""
-		bbox_id = annotation[0]
-		check_query = "SELECT * FROM annotations WHERE bbox_id =:bbox_id"
-		try:
-			self.cursor.execute(check_query, {"bbox_id": bbox_id})
-			results = self.cursor.fetchall()
-			if results:
-				self.update_annotation(annotation)
-			else:
-				self.add_annotation(annotation)
-		except sqlite3.Error as error:
-			self.rollback_and_close()
-			raise error
-
-	def add_annotation(self, annotation):
-		"""
-		add annotation to annotations table.
-		"""
-		add_annotation_query = "INSERT INTO annotations VALUES (?,?,?,?,?,?,?)"
-		try:
-			self.cursor.execute(add_annotation_query, annotation)
-		except sqlite3.Error as error:
-			self.rollback_and_close()
-			raise error
-		else:
-			self.conn.commit()
-
-	def update_annotation(self, annotation):
-		"""
-		update annotations table with annotation.
-		"""
 		bbox_id, row_start, row_end, col_start, col_end, z_start, z_end = annotation
-		update_annotation_query = '''UPDATE annotations SET 
-									row_start = :row_start,
-									row_end = :row_end,
-									col_start = :col_start,
-									col_end = :col_end,
-									z_start = :z_start,
-									z_end = :z_end
-									WHERE bbox_id = :bbox_id'''
 		annotation = {"row_start": row_start, "row_end": row_end,
 					  "col_start": col_start, "col_end": col_end,
 					  "z_start": z_start, "z_end": z_end, "bbox_id": bbox_id}
+		upsert_query = '''INSERT INTO annotations VALUES (:bbox_id,:row_start,:row_end,:col_start,:col_end,:z_start,:z_end) 
+			ON CONFLICT(bbox_id) 
+			DO UPDATE SET 
+			row_start = :row_start, 
+			row_end = :row_end, 
+			col_start = :col_start, 
+			col_end = :col_end, 
+			z_start = :z_start, 
+			z_end = :z_end '''
 		try:
-			self.cursor.execute(update_annotation_query, annotation)
+			self.cursor.execute(upsert_query, annotation)
 		except sqlite3.Error as error:
 			self.rollback_and_close()
 			raise error
-		else:
-			self.conn.commit()
 
 	def delete_annotation(self, bbox_id):
 		"""

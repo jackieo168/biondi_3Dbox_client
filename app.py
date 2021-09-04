@@ -27,6 +27,7 @@ DOES NOT SUPPORT CONCURRENT RUNS (i.e. different annotation sessions). YOU CAN O
 class Application(QMainWindow):
 	def __init__(self, filestate, parent=None, existing_case=False):
 		super().__init__(parent)
+		self.db_error = False
 		self.parent = parent
 		self.filestate = filestate
 
@@ -88,8 +89,8 @@ class Application(QMainWindow):
 			self.sink_db = Database(self.filestate.get_sink_db_filename())
 			if not self.existing_case:
 				# clear contents of any preexisting annotations table
-				self.sink_db = Database(self.filestate.get_sink_db_filename(), True)
-			self.status_bar.showMessage("sink db connection successfully established.")
+				self.sink_db = Database(self.filestate.get_sink_db_filename(), init_case=True)
+			self.status_bar.showMessage("sink db connection successfully established")
 		except sqlite3.Error as error:
 			self.handle_sink_db_sqlite_error(error)
 
@@ -190,8 +191,8 @@ class Application(QMainWindow):
 		"""
 		handler for source db sqlite errors
 		"""
-		# self.status_bar.showMessage("Source database error: " + error)
-		if error: print("Source database error: ", error)
+		if error: self.status_bar.showMessage("Source database error: "+ str(error))
+		self.db_error = True
 		self.source_db_cur.close()
 		self.source_db_conn.close()
 		self.close()
@@ -215,10 +216,12 @@ class Application(QMainWindow):
 			res = self.source_db_cur.execute("SELECT * from annotations")
 			rows = res.fetchall()
 			for row in rows:
-				# BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x,y)
 				bbox_id, row_start, row_end, col_start, col_end, z_start, z_end = row
 				bbox = BoundingBox(bbox_id, self.input_array_zmax, self.img_view, col_start, row_start)
-				bbox.setPen(width=1, color='y')
+				# NOTE: can't use get_bare_bbox_obj_from_details for this ^ because signals are set and
+				# setSize (below) causes the changed-region signal to be triggered, which updates the
+				# top and side views based on the latest_clicked_bbox, which is None at this point.
+				# adjust other bbox details like size and vbounds
 				bbox_row_size = row_end - row_start
 				bbox_col_size = col_end - col_start
 				bbox.setSize([bbox_col_size, bbox_row_size])
@@ -226,7 +229,10 @@ class Application(QMainWindow):
 				z_end_bound = self.get_vboundline_from_yvalue(z_end)
 				bbox.add_associated_v_bound(z_start_bound)
 				bbox.add_associated_v_bound(z_end_bound)
-				self.add_bbox_to_main_view(bbox)
+				self.img_view.addItem(bbox)
+				bbox.sigRegionChangeFinished.connect(self.on_bbox_region_change_finished)
+				bbox.sigRegionChangeStarted.connect(self.on_bbox_region_change_started)
+				bbox.sigRemoveRequested.connect(self.remove_item_from_main_img_plot)
 			self.status_bar.showMessage("annotations successfully loaded from source db")
 			self.source_db_cur.close()
 			self.source_db_conn.close()
@@ -236,13 +242,26 @@ class Application(QMainWindow):
 	def get_vboundline_from_yvalue(self, y):
 		"""
 		return InfiniteLine corresponding to input y value
+		includes its signals.
 		"""
 		v_bound = None
 		if y != 'NULL':
 			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
 			v_bound.setPen(width=3, color='g')
 			v_bound.setHoverPen(width=3, color='y')
+			v_bound.sigPositionChangeFinished.connect(self.on_vbound_position_changed_finished)
 		return v_bound
+
+	def get_bare_bbox_obj_from_details(self, bbox_num, img, img_view, x, y):
+		"""
+		return BoundingBox corresponding to input bbox_num, img, img_view, x, y
+		includes its signals.
+		"""
+		bbox = BoundingBox(bbox_num, img, img_view, x, y)
+		bbox.sigRegionChangeFinished.connect(self.on_bbox_region_change_finished)
+		bbox.sigRegionChangeStarted.connect(self.on_bbox_region_change_started)
+		bbox.sigRemoveRequested.connect(self.remove_item_from_main_img_plot)
+		return bbox
 
 	###################
 	# SINK DB METHODS #
@@ -252,11 +271,11 @@ class Application(QMainWindow):
 		"""
 		handler for sink db sqlite errors
 		"""
-		# self.status_bar.showMessage("Sink database error: " + error)
-		if error: print("Sink database error: ", error)
+		if error: self.status_bar.showMessage("sink database error: "+ str(error))
+		self.db_error = True
 		self.close()
 
-	def add_or_update_sink_database(self):
+	def upsert_to_sink_database(self):
 		"""
 		add or update sink db with current information on the latest interacted-with annotation.
 		called when bbox is added(drawn), dragged, changed in size and when vbounds are added, dragged.
@@ -265,7 +284,7 @@ class Application(QMainWindow):
 		self.latest_clicked_bbox.refresh_bbox_vertex_info()
 		annotation = self.latest_clicked_bbox.get_parameters()
 		try:
-			self.sink_db.add_or_update_annotation(annotation)
+			self.sink_db.upsert_annotation(annotation)
 		except sqlite3.Error as error:
 			self.handle_sink_db_sqlite_error(error)
 
@@ -305,43 +324,47 @@ class Application(QMainWindow):
 		else:  # DRAW THE BBOX
 			self.status_bar.showMessage('drawing new bbox')
 			self.draw_new_bbox(x, y)
-		self.refresh_top_and_side_views()
+		self.update_top_and_side_views()
 
 	def draw_new_bbox(self, x, y):
 		"""
 		construct and add a new bbox at specified x, y coordinates in main image view.
 		"""
 		self.bbox_num += 1
-		self.update_latest_clicked_bbox(BoundingBox(self.bbox_num, self.input_array_zmax, self.img_view, x, y))
-		self.add_or_update_sink_database()
-		self.add_bbox_to_main_view(self.latest_clicked_bbox)
+		added_bbox = self.get_bare_bbox_obj_from_details(self.bbox_num, self.input_array_zmax, self.img_view, x, y)
+		self.update_latest_clicked_bbox(added_bbox)
+		self.upsert_to_sink_database()
+		self.img_view.addItem(added_bbox)
 
-	def add_bbox_to_main_view(self, bbox):
+	def on_bbox_region_change_started(self):
 		"""
-		adds bbox to main image view and sets up its signals.
+		called when a bbox's region is starting to change.
+		just set's the bbox's pen width, nothing else.
+		latest clicked bbox update and related changes happen upon finish.
 		"""
-		self.img_view.addItem(bbox)
-		bbox.sigRegionChangeFinished.connect(self.on_bbox_region_change_finished)
-		bbox.sigRemoveRequested.connect(self.remove_item_from_main_img_plot)
+		bbox = self.sender()
+		bbox.setPen(width=3)
 
 	def on_bbox_region_change_finished(self):
 		"""
 		called when a bbox's region is changed.
 		fixes bug where changing a bbox's region doesn't update self.latest_clicked_box
 		"""
-		self.update_latest_clicked_bbox(self.sender())
-		self.status_bar.showMessage("Changing bounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
-		self.add_or_update_sink_database()
-		self.refresh_top_and_side_views()
+		bbox = self.sender()
+		self.clear_top_and_side_views()
+		self.update_latest_clicked_bbox(bbox)
+		self.status_bar.showMessage("dragging or changing bounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
+		self.update_top_and_side_views()
+		self.upsert_to_sink_database()
 
 	def remove_item_from_main_img_plot(self):
 		"""
 		When the appropriate right click context menu item is selected, removes the
 		item from the main image plot.
 		"""
-		self.status_bar.showMessage("removed bbox")
 		bbox = self.sender()  # bbox
 		self.update_latest_clicked_bbox(bbox)  # update latest clicked bbox even though it's removed
+		self.status_bar.showMessage("removed bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
 		self.img_plot.removeItem(bbox)
 		self.clear_top_and_side_views()
 		self.delete_from_sink_database(bbox)
@@ -364,7 +387,7 @@ class Application(QMainWindow):
 	# TOP AND SIDE VIEWS #
 	######################
 
-	def refresh_top_and_side_views(self):
+	def update_top_and_side_views(self):
 		"""
 		update top and side views with respective views of selected data.
 		"""
@@ -420,12 +443,13 @@ class Application(QMainWindow):
 	def side_view_mouse_clicked(self, event):
 		"""
 		called when mouse clicks on side_img_view
+		only draws vbounds if a bbox has been interacted it (will act as no-op o.w.)
 		"""
-		self.side_img_view_item = self.side_img_view.getImageItem()
-		mouse_pos = event.scenePos()
-		img_pos = self.side_img_view_item.mapFromScene(mouse_pos)
-		y = round(img_pos.y())
-		self.draw_new_v_bound(y)
+		if self.latest_clicked_bbox:
+			self.side_img_view_item = self.side_img_view.getImageItem()
+			mouse_pos = event.scenePos()
+			img_pos = self.side_img_view_item.mapFromScene(mouse_pos)
+			self.draw_new_v_bound(img_pos.y())
 
 	def draw_new_v_bound(self, y):
 		"""
@@ -433,24 +457,16 @@ class Application(QMainWindow):
 		y (position) is rounded.
 		"""
 		self.status_bar.showMessage('')
+		rounded_y = round(y)
 		num_v_bounds = self.latest_clicked_bbox.get_num_associated_v_bounds()
 		if num_v_bounds < 2:
 			# add a vertical bound
 			self.status_bar.showMessage('adding vbounds for bbox ' + str(self.latest_clicked_bbox.get_bbox_num()))
-			v_bound = pg.InfiniteLine(pos=y, angle=0, movable=True)
-			v_bound.setPen(width=3, color='g')
-			v_bound.setHoverPen(width=3, color='y')
-			self.latest_clicked_bbox.add_associated_v_bound(v_bound)
-			self.add_or_update_sink_database()
-			self.add_v_bound_to_side_view(v_bound)
+			added_v_bound = self.get_vboundline_from_yvalue(rounded_y)
+			self.latest_clicked_bbox.add_associated_v_bound(added_v_bound)
+			self.upsert_to_sink_database()
+			self.side_img_view.addItem(added_v_bound)
 		# else, do nothing
-
-	def add_v_bound_to_side_view(self, v_bound):
-		"""
-		Adds vbound to side view and sets up its signals.
-		"""
-		self.side_img_view.addItem(v_bound)
-		v_bound.sigPositionChangeFinished.connect(self.on_vbound_position_changed_finished)
 
 	def on_vbound_position_changed_finished(self):
 		"""
@@ -459,10 +475,12 @@ class Application(QMainWindow):
 		"""
 		# set the bound's value to the rounded number
 		v_bound = self.sender()
-		v_bound_value = v_bound.value()
-		v_bound.setValue(round(v_bound_value))
-		self.status_bar.showMessage("Adjusting vbounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
-		self.add_or_update_sink_database()
+		v_bound_rounded_value = round(v_bound.value())
+		v_bound.setValue(v_bound_rounded_value)
+		self.clear_top_and_side_views()
+		self.update_top_and_side_views()
+		self.status_bar.showMessage("adjusting vbounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
+		self.upsert_to_sink_database()
 
 	def change_side_view_btn_clicked(self):
 		"""
@@ -491,12 +509,16 @@ class Application(QMainWindow):
 		"""
 		upon closing window
 		"""
-		reply = QMessageBox.question(self, 'Window Close',
-									 'Are you sure you want to close the window? (Current work will be saved.)',
-									 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-		if reply == QMessageBox.Yes:
-			event.accept()
-			self.sink_db.save_and_close()
-			# print('Window closed')
+		if not self.db_error:
+			reply = QMessageBox.question(self, 'Window Close',
+										 'Are you sure you want to close the window? (Current work will be saved.)',
+										 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+			if reply == QMessageBox.Yes:
+				event.accept()
+				self.sink_db.save_and_close()
+				# print('Window closed')
+			else:
+				event.ignore()
 		else:
-			event.ignore()
+			QMessageBox.warning(self, 'Window Close', 'Closing due to database error', QMessageBox.Ok)
+			event.accept()
