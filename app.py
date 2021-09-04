@@ -476,9 +476,9 @@ class Application(QMainWindow):
 		# set the bound's value to the rounded number
 		v_bound = self.sender()
 		v_bound_rounded_value = round(v_bound.value())
+		self.side_img_view.removeItem(v_bound)
 		v_bound.setValue(v_bound_rounded_value)
-		self.clear_top_and_side_views()
-		self.update_top_and_side_views()
+		self.side_img_view.addItem(v_bound)
 		self.status_bar.showMessage("adjusting vbounds of bbox " + str(self.latest_clicked_bbox.get_bbox_num()))
 		self.upsert_to_sink_database()
 
